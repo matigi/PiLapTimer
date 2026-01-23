@@ -1,9 +1,9 @@
 #include <Arduino.h>
 
-#include "waveshare_drivers/AMOLED_1in64.h"
-#include "waveshare_drivers/DEV_Config.h"
-#include "waveshare_drivers/GUI_Paint.h"
-#include "waveshare_drivers/qspi_pio.h"
+#include "AMOLED_1in64.h"
+#include "DEV_Config.h"
+#include "GUI_Paint.h"
+#include "qspi_pio.h"
 
 namespace {
 constexpr uint16_t kColorBlack = 0x0000;
