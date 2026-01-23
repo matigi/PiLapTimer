@@ -178,6 +178,11 @@ The following libraries are expected to be used unless otherwise justified:
 - Additional sensors
 - External CAN or serial interfaces
 
+### Arduino build note (Waveshare fonts)
+Some Waveshare font definitions (e.g. Font16/Font20) must be located in the sketch folder
+(`firmware/pilaptimer/`) so Arduino compiles and links them. Keeping these font sources in
+subfolders may cause undefined reference errors.
+
 These features are explicitly excluded from Version 1.0.
 
 ---
