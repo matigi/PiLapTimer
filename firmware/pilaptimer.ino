@@ -1,33 +1,9 @@
 #include <Arduino.h>
 
-// Display configuration: prefer Waveshare AMOLED library, fall back to Adafruit_GFX-compatible driver.
-#if __has_include(<Waveshare_AMOLED.h>)
-#include <Waveshare_AMOLED.h>
-static Waveshare_AMOLED display;
-#elif __has_include(<AMOLED_1in64.h>)
-#include <AMOLED_1in64.h>
-static AMOLED_1in64 display;
-#elif __has_include(<LCD_1inch64.h>)
-#include <LCD_1inch64.h>
-static LCD_1inch64 display;
-#elif __has_include(<Adafruit_GFX.h>) && __has_include(<Adafruit_ST7789.h>)
-#include <Adafruit_GFX.h>
-#include <Adafruit_ST7789.h>
-
-#ifndef PILAPTIMER_TFT_CS
-#define PILAPTIMER_TFT_CS 17
-#endif
-#ifndef PILAPTIMER_TFT_DC
-#define PILAPTIMER_TFT_DC 16
-#endif
-#ifndef PILAPTIMER_TFT_RST
-#define PILAPTIMER_TFT_RST 15
-#endif
-
-static Adafruit_ST7789 display(PILAPTIMER_TFT_CS, PILAPTIMER_TFT_DC, PILAPTIMER_TFT_RST);
-#else
-#error "No supported display library found. Install the Waveshare AMOLED library or an Adafruit_GFX-compatible driver."
-#endif
+#include "waveshare_drivers/AMOLED_1in64.h"
+#include "waveshare_drivers/DEV_Config.h"
+#include "waveshare_drivers/GUI_Paint.h"
+#include "waveshare_drivers/qspi_pio.h"
 
 namespace {
 constexpr uint16_t kColorBlack = 0x0000;
@@ -37,21 +13,18 @@ constexpr int16_t kTitleX = 12;
 constexpr int16_t kTitleY = 20;
 constexpr int16_t kUptimeX = 12;
 constexpr int16_t kUptimeY = 60;
+constexpr int16_t kUptimeWidth = 220;
+constexpr int16_t kUptimeHeight = 32;
 
 uint32_t lastUptimeUpdateMs = 0;
 
 void initDisplay() {
-#if defined(ADAFRUIT_ST7789_H)
-  display.init(280, 456);
-#else
-  display.begin();
-#endif
-  display.fillScreen(kColorBlack);
-  display.setTextWrap(false);
-  display.setTextSize(2);
-  display.setTextColor(kColorWhite);
-  display.setCursor(kTitleX, kTitleY);
-  display.print("PiLapTimer");
+  DEV_Module_Init();
+  QSPI_PIO_Init();
+  AMOLED_1in64_Init();
+  Paint_Init(AMOLED_1IN64_WIDTH, AMOLED_1IN64_HEIGHT);
+  Paint_Clear(kColorBlack);
+  Paint_DrawString_EN(kTitleX, kTitleY, "PiLapTimer", kColorWhite, kColorBlack, 2);
 }
 
 void drawUptime(uint32_t nowMs) {
@@ -60,9 +33,8 @@ void drawUptime(uint32_t nowMs) {
   char buffer[32];
   snprintf(buffer, sizeof(buffer), "Uptime: %lu.%03lu s", seconds, millisPart);
 
-  display.setTextColor(kColorWhite, kColorBlack);
-  display.setCursor(kUptimeX, kUptimeY);
-  display.print(buffer);
+  Paint_ClearWindows(kUptimeX, kUptimeY, kUptimeX + kUptimeWidth, kUptimeY + kUptimeHeight, kColorBlack);
+  Paint_DrawString_EN(kUptimeX, kUptimeY, buffer, kColorWhite, kColorBlack, 2);
 }
 }  // namespace
 
