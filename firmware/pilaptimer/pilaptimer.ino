@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
-#include "AMOLED_1in64.h"
 #include "DEV_Config.h"
+#include "AMOLED_1in64.h"
 #include "FT3168.h"
 #include "GUI_Paint.h"
 #include "fonts.h"
