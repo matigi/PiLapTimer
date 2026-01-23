@@ -54,6 +54,8 @@ PiLapTimer/
 ├── firmware/
 │ └── pilaptimer/
 │   └── pilaptimer.ino # Main firmware entry point
+│ └── ir_beacon/
+│   └── ir_beacon.ino # IR start/finish beacon sketch
 │
 ├── docs/
 │ ├── gokart-lap-timer-functional-spec.md
@@ -62,6 +64,7 @@ PiLapTimer/
 │ ├── STATE_MACHINE.md
 │ └── WIRING.md
 │ └── PLATFORM.md
+│ └── IR_BEACON.md
 │
 ├── data/ # Example output files (CSV / JSON)
 │
