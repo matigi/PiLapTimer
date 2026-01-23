@@ -60,6 +60,7 @@ PiLapTimer/
 │ ├── TEST_PLAN.md
 │ ├── STATE_MACHINE.md
 │ └── WIRING.md
+│ └── PLATFORM.md
 │
 ├── data/ # Example output files (CSV / JSON)
 │
@@ -82,6 +83,9 @@ The following documents define system behavior and **must be treated as authorit
 
 - `docs/STATE_MACHINE.md`  
   → System states and valid transitions
+
+- `docs/PLATFORM.md`  
+  → Hardware platform, libraries, and low-level constraints
 
 Any change to behavior **must be reflected in documentation first**.
 
