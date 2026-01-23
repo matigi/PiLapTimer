@@ -52,7 +52,8 @@ This repository contains firmware, documentation, and test plans for **Version 1
 
 PiLapTimer/
 ├── firmware/
-│ └── pilaptimer.ino # Main firmware entry point
+│ └── pilaptimer/
+│   └── pilaptimer.ino # Main firmware entry point
 │
 ├── docs/
 │ ├── gokart-lap-timer-functional-spec.md
@@ -184,4 +185,3 @@ License to be defined.
 
 Project Phase: **Active Development**  
 Current Focus: **Milestone 1 – Display Bring-Up**
-
