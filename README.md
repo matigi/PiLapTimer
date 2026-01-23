@@ -185,3 +185,8 @@ License to be defined.
 
 Project Phase: **Active Development**  
 Current Focus: **Milestone 1 – Display Bring-Up**
+
+### Driver integrity rule
+Files under `firmware/pilaptimer/` that originate from Waveshare (display/touch drivers and fonts)
+must be treated as read-only unless a change is explicitly requested. Modifying them can break
+display initialization.
