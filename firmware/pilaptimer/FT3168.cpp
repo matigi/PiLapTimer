@@ -62,7 +62,10 @@ function :	Reset the FT3168
 parameter:
 ******************************************************************************/
 void FT3168_Reset() {
-    gpio_put(Touch_RST_PIN, 1); 
+    if (Touch_RST_PIN < 0) {
+        return;
+    }
+    gpio_put(Touch_RST_PIN, 1);
     sleep_ms(20);
     gpio_put(Touch_RST_PIN, 0);
     sleep_ms(20);
@@ -161,4 +164,3 @@ uint8_t FT3168_Get_Gesture() {
     uint8_t gesture = FT3168_ReadState(FT3168_GESTURE_ID);
     return gesture;
 }
-

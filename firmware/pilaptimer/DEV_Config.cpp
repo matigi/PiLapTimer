@@ -148,6 +148,9 @@ void DEV_Delay_us(UDOUBLE xus)
 
 void DEV_GPIO_Init(void)
 {
+    if (Touch_RST_PIN < 0) {
+        return;
+    }
     gpio_init(Touch_RST_PIN);
     gpio_set_dir(Touch_RST_PIN, GPIO_OUT);
 }
