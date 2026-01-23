@@ -1,9 +1,9 @@
 #include <Arduino.h>
 
-#include "waveshare_drivers/AMOLED_1in64.h"
-#include "waveshare_drivers/DEV_Config.h"
-#include "waveshare_drivers/GUI_Paint.h"
-#include "waveshare_drivers/qspi_pio.h"
+#include "DEV_Config.h"
+#include "qspi_pio.h"
+#include "AMOLED_1in64.h"
+#include "GUI_Paint.h"
 
 namespace {
 constexpr uint16_t kColorBlack = 0x0000;
@@ -41,6 +41,7 @@ void drawUptime(uint32_t nowMs) {
 void setup() {
   Serial.begin(115200);
   Serial.println("BOOT");
+
 
   initDisplay();
   drawUptime(millis());
