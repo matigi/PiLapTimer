@@ -28,3 +28,8 @@ Phase 1 – Wired IR lap timing using RP2350 (no wireless)
 
 ## Next Milestone
 Integrate IR receiver core into RP2350 UI and lap timing state machine.
+
+## Display Bring-Up (Locked)
+- AMOLED init MUST follow Waveshare demo sequence
+- QSPI_GPIO_Init → QSPI_PIO_Init → QSPI_1Wrie_Mode → AMOLED_1IN64_Init
+- Full framebuffer required for AMOLED_1IN64_Display()
