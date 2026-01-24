@@ -1,3 +1,17 @@
+/*
+  Reference Demo – DO NOT MODIFY
+
+  Source: Waveshare RP2350-Touch-AMOLED-1.64 official demo
+  Purpose:
+  - Canonical AMOLED + QSPI + Touch initialization sequence
+  - Framebuffer allocation reference
+  - Touch controller init mode reference
+
+  This file exists to prevent regressions in display bring-up.
+  Production code lives in firmware/pilaptimer/.
+*/
+
+
 #include "DEV_Config.h"
 #include "AMOLED_1in64.h"
 #include "qspi_pio.h"
