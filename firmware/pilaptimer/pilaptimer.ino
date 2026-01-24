@@ -7,6 +7,11 @@
 #include "fonts.h"
 #include "qspi_pio.h"
 
+// Make IRAM_ATTR portable (ESP32 uses it; RP/Pico cores don't)
+#ifndef IRAM_ATTR
+#define IRAM_ATTR
+#endif
+
 // RGB565 colors
 #ifndef RED
 #define RED   0xF800
@@ -22,7 +27,24 @@ static UWORD info_image[AMOLED_1IN64_WIDTH * kInfoHeight];
 static bool last_touch_active = false;
 static uint16_t last_touch_x = 0;
 static uint16_t last_touch_y = 0;
+
+constexpr uint8_t kIrPin = 2;
+constexpr bool kIrActiveLow = true;
+constexpr uint32_t kLapDebounceMs = 1500;
+constexpr uint32_t kMinLapTimeMs = 5000;
+
+volatile bool ir_triggered = false;
+volatile uint32_t ir_timestamp_ms = 0;
+
+uint32_t lap_count = 0;
+uint32_t last_valid_lap_ms = 0;
+uint32_t last_trigger_ms = 0;
 }  // namespace
+
+void IRAM_ATTR OnIrTrigger() {
+  ir_timestamp_ms = millis();
+  ir_triggered = true;
+}
 
 void RenderTouchInfo(bool touch_active, uint16_t x, uint16_t y) {
   Paint_SelectImage(reinterpret_cast<UBYTE *>(info_image));
@@ -85,10 +107,64 @@ void setup() {
   Paint_SetMirroring(MIRROR_NONE);
   RenderTouchInfo(false, 0, 0);
 
+  pinMode(kIrPin, kIrActiveLow ? INPUT_PULLUP : INPUT_PULLDOWN);
+  attachInterrupt(digitalPinToInterrupt(kIrPin), OnIrTrigger,
+                  kIrActiveLow ? FALLING : RISING);
+  Serial.print("IR debounce ms=");
+  Serial.println(kLapDebounceMs);
+  Serial.print("Min lap ms=");
+  Serial.println(kMinLapTimeMs);
+
   Serial.println("DONE");
 }
 
 void loop() {
+  if (ir_triggered) {
+    uint32_t timestamp_ms = 0;
+    noInterrupts();
+    if (ir_triggered) {
+      timestamp_ms = ir_timestamp_ms;
+      ir_triggered = false;
+    }
+    interrupts();
+
+    if (timestamp_ms != 0) {
+      if (last_trigger_ms != 0) {
+        uint32_t trigger_delta_ms = timestamp_ms - last_trigger_ms;
+        if (trigger_delta_ms < kLapDebounceMs) {
+          Serial.printf("IR IGNORE (debounce) @ %lu ms | delta=%lu ms\n",
+                        static_cast<unsigned long>(timestamp_ms),
+                        static_cast<unsigned long>(trigger_delta_ms));
+          return;
+        }
+      }
+
+      last_trigger_ms = timestamp_ms;
+
+      if (last_valid_lap_ms != 0) {
+        uint32_t lap_delta_ms = timestamp_ms - last_valid_lap_ms;
+        if (lap_delta_ms < kMinLapTimeMs) {
+          Serial.printf("IR IGNORE (min lap) @ %lu ms | delta=%lu ms\n",
+                        static_cast<unsigned long>(timestamp_ms),
+                        static_cast<unsigned long>(lap_delta_ms));
+        } else {
+          lap_count++;
+          last_valid_lap_ms = timestamp_ms;
+          Serial.printf("IR HIT @ %lu ms | lap=%lu | delta=%lu ms\n",
+                        static_cast<unsigned long>(timestamp_ms),
+                        static_cast<unsigned long>(lap_count),
+                        static_cast<unsigned long>(lap_delta_ms));
+        }
+      } else {
+        lap_count++;
+        last_valid_lap_ms = timestamp_ms;
+        Serial.printf("IR HIT @ %lu ms | lap=%lu | delta=0 ms\n",
+                      static_cast<unsigned long>(timestamp_ms),
+                      static_cast<unsigned long>(lap_count));
+      }
+    }
+  }
+
   bool touch_active = FT3168_Get_Point();
   uint16_t touch_x = FT3168.x_point;
   uint16_t touch_y = FT3168.y_point;
