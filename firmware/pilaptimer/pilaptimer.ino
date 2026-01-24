@@ -1,12 +1,66 @@
 #include <Arduino.h>
 
-// Make IRAM_ATTR portable (ESP32 uses it; RP cores don't)
+#include "DEV_Config.h"
+#include "AMOLED_1in64.h"
+#include "FT3168.h"
+#include "GUI_Paint.h"
+#include "fonts.h"
+#include "qspi_pio.h"
+
+// Make IRAM_ATTR portable (ESP32 uses it; RP/Pico cores don't)
 #ifndef IRAM_ATTR
 #define IRAM_ATTR
 #endif
 
-// ================== USER CONFIG ==================
-#define IR_IN_PIN 2
+// RGB565 colors
+#ifndef RED
+#define RED   0xF800
+#define GREEN 0x07E0
+#define BLUE  0x001F
+#define WHITE 0xFFFF
+#define BLACK 0x0000
+#endif
+
+namespace {
+constexpr uint16_t kInfoHeight = 80;
+static UWORD info_image[AMOLED_1IN64_WIDTH * kInfoHeight];
+static bool last_touch_active = false;
+static uint16_t last_touch_x = 0;
+static uint16_t last_touch_y = 0;
+
+constexpr uint8_t kIrPin = 2;
+constexpr bool kIrActiveLow = true;
+constexpr uint32_t kLapDebounceMs = 1500;
+constexpr uint32_t kMinLapTimeMs = 5000;
+
+volatile bool ir_triggered = false;
+volatile uint32_t ir_timestamp_ms = 0;
+
+uint32_t lap_count = 0;
+uint32_t last_valid_lap_ms = 0;
+uint32_t last_trigger_ms = 0;
+}  // namespace
+
+void IRAM_ATTR OnIrTrigger() {
+  ir_timestamp_ms = millis();
+  ir_triggered = true;
+}
+
+void RenderTouchInfo(bool touch_active, uint16_t x, uint16_t y) {
+  Paint_SelectImage(reinterpret_cast<UBYTE *>(info_image));
+  Paint_Clear(BLACK);
+  Paint_DrawString_EN(8, 6, "Touch Input", &Font20, WHITE, BLACK);
+
+  if (touch_active) {
+    char x_text[16];
+    char y_text[16];
+    snprintf(x_text, sizeof(x_text), "X: %03u", x);
+    snprintf(y_text, sizeof(y_text), "Y: %03u", y);
+    Paint_DrawString_EN(8, 32, x_text, &Font20, GREEN, BLACK);
+    Paint_DrawString_EN(8, 54, y_text, &Font20, GREEN, BLACK);
+  } else {
+    Paint_DrawString_EN(8, 38, "No touch", &Font16, RED, BLACK);
+  }
 
 // Your beacon pattern: 10x(2ms ON / 2ms OFF) then ~20ms gap
 // Tune: be stricter so we don't "see" phantom gaps as frames.
@@ -112,57 +166,75 @@ void IRAM_ATTR onIrEdge() {
   lastLevel = level;
 }
 
-void setup() {
-  Serial.begin(115200);
-  delay(200);
+  pinMode(kIrPin, kIrActiveLow ? INPUT_PULLUP : INPUT_PULLDOWN);
+  attachInterrupt(digitalPinToInterrupt(kIrPin), OnIrTrigger,
+                  kIrActiveLow ? FALLING : RISING);
+  Serial.print("IR debounce ms=");
+  Serial.println(kLapDebounceMs);
+  Serial.print("Min lap ms=");
+  Serial.println(kMinLapTimeMs);
 
-  pinMode(IR_IN_PIN, INPUT_PULLUP);
-
-  lastEdgeUs = 0;
-  lastLevel = digitalRead(IR_IN_PIN);
-
-  attachInterrupt(digitalPinToInterrupt(IR_IN_PIN), onIrEdge, CHANGE);
-
-  Serial.println();
-  Serial.println("RP2350 IR Receiver Bench Test (tuned framed beacon)");
-  Serial.printf("GPIO=%d | FRAME_GAP_MIN_US=%lu | MIN_BURSTS=%u | WINDOW_MS=%lu | COOLDOWN_MS=%lu\n",
-                IR_IN_PIN,
-                (unsigned long)FRAME_GAP_MIN_US,
-                (unsigned)MIN_VALID_BURSTS_FOR_FRAME,
-                (unsigned long)BURST_WINDOW_MS,
-                (unsigned long)COOLDOWN_MS);
-  Serial.printf("ON range: %lu..%lu us | OFF range: %lu..%lu us\n",
-                (unsigned long)ON_MIN_US, (unsigned long)ON_MAX_US,
-                (unsigned long)OFF_MIN_US, (unsigned long)OFF_MAX_US);
+  Serial.println("DONE");
 }
 
 void loop() {
-  static uint32_t lastPrintMs = 0;
-  static uint32_t lastLapMs = 0;
-
-  uint32_t now = millis();
-
-  // Consume pending frame candidate (atomic copy+clear)
-  uint32_t frameMs = 0;
-  noInterrupts();
-  frameMs = pendingFrameMs;
-  pendingFrameMs = 0;
-  interrupts();
-
-  if (frameMs != 0) {
-    // Cooldown enforced here (deterministic)
-    if ((frameMs - lastLapMs) >= COOLDOWN_MS) {
-      lastLapMs = frameMs;
-
-      uint16_t f = 0, n = 0;
-      noInterrupts();
-      f = framesSeen;
-      n = noiseEdges;
-      interrupts();
-
-      Serial.printf("LAP TRIGGERED @ %lu ms | framesSeen=%u | noiseEdges=%u\n",
-                    (unsigned long)frameMs, (unsigned)f, (unsigned)n);
+  if (ir_triggered) {
+    uint32_t timestamp_ms = 0;
+    noInterrupts();
+    if (ir_triggered) {
+      timestamp_ms = ir_timestamp_ms;
+      ir_triggered = false;
     }
+    interrupts();
+
+    if (timestamp_ms != 0) {
+      if (last_trigger_ms != 0) {
+        uint32_t trigger_delta_ms = timestamp_ms - last_trigger_ms;
+        if (trigger_delta_ms < kLapDebounceMs) {
+          Serial.printf("IR IGNORE (debounce) @ %lu ms | delta=%lu ms\n",
+                        static_cast<unsigned long>(timestamp_ms),
+                        static_cast<unsigned long>(trigger_delta_ms));
+          return;
+        }
+      }
+
+      last_trigger_ms = timestamp_ms;
+
+      if (last_valid_lap_ms != 0) {
+        uint32_t lap_delta_ms = timestamp_ms - last_valid_lap_ms;
+        if (lap_delta_ms < kMinLapTimeMs) {
+          Serial.printf("IR IGNORE (min lap) @ %lu ms | delta=%lu ms\n",
+                        static_cast<unsigned long>(timestamp_ms),
+                        static_cast<unsigned long>(lap_delta_ms));
+        } else {
+          lap_count++;
+          last_valid_lap_ms = timestamp_ms;
+          Serial.printf("IR HIT @ %lu ms | lap=%lu | delta=%lu ms\n",
+                        static_cast<unsigned long>(timestamp_ms),
+                        static_cast<unsigned long>(lap_count),
+                        static_cast<unsigned long>(lap_delta_ms));
+        }
+      } else {
+        lap_count++;
+        last_valid_lap_ms = timestamp_ms;
+        Serial.printf("IR HIT @ %lu ms | lap=%lu | delta=0 ms\n",
+                      static_cast<unsigned long>(timestamp_ms),
+                      static_cast<unsigned long>(lap_count));
+      }
+    }
+  }
+
+  bool touch_active = FT3168_Get_Point();
+  uint16_t touch_x = FT3168.x_point;
+  uint16_t touch_y = FT3168.y_point;
+
+  if (touch_active != last_touch_active ||
+      (touch_active &&
+       (touch_x != last_touch_x || touch_y != last_touch_y))) {
+    RenderTouchInfo(touch_active, touch_x, touch_y);
+    last_touch_active = touch_active;
+    last_touch_x = touch_x;
+    last_touch_y = touch_y;
   }
 
   // Periodic stats
