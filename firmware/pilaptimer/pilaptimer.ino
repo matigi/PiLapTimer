@@ -1,3 +1,4 @@
+// ==== known-good config ====
 #include <Arduino.h>
 
 #include "DEV_Config.h"
@@ -11,176 +12,48 @@
 #define IRAM_ATTR
 #endif
 
-#ifndef RED
-#define RED   0xF800
-#define GREEN 0x07E0
-#define BLUE  0x001F
+#ifndef WHITE
 #define WHITE 0xFFFF
 #define BLACK 0x0000
+#define RED   0xF800
+#define GREEN 0x07E0
 #endif
 
-// ==============================
-// IR framed receiver (tuned)
-// ==============================
-namespace ir {
+// ===== IR GPIO (your proven-good setup) =====
+static const uint8_t IR_IN_PIN = 1;   // GP1 / Arduino pin 1
+// ===========================================
 
-static const uint8_t IR_IN_PIN = 2;
+// ===== Trigger tuning (start here) =====
+static const uint32_t SAMPLE_MS      = 20;  // cadence
+static const uint16_t ON_THRESHOLD   = 3;   // falls per sample to say "present"
+static const uint16_t OFF_THRESHOLD  = 1;   // falls per sample to say "absent"
+static const uint8_t  STREAK_N       = 2;   // consecutive samples required
 
-// Beacon: 10x(2ms ON / 2ms OFF) then ~20ms gap
-static const uint32_t FRAME_GAP_MIN_US = 19000;
+static const uint32_t LAP_COOLDOWN_MS = 2000;
+static const uint32_t MIN_LAP_MS      = 5000;
+// ======================================
 
-// Demod output tolerances
-static const uint32_t ON_MIN_US  = 900;
-static const uint32_t ON_MAX_US  = 4000;
-static const uint32_t OFF_MIN_US = 900;
-static const uint32_t OFF_MAX_US = 5000;
+static UWORD* gFrame = nullptr;
 
-static const uint8_t  MIN_VALID_BURSTS_FOR_FRAME = 10;
-static const uint32_t BURST_WINDOW_MS = 120;
-static const uint32_t COOLDOWN_MS = 2000;
+// Touch/UI state
+static bool last_touch_active = false;
+static uint16_t last_touch_x = 0;
+static uint16_t last_touch_y = 0;
 
-static inline bool inRange(uint32_t v, uint32_t lo, uint32_t hi) {
-  return (v >= lo && v <= hi);
+// Lap state
+static uint32_t lap_count = 0;
+static uint32_t last_lap_ms = 0;
+
+// IR ISR counters
+volatile uint32_t gFallingCount = 0;
+volatile uint32_t gLastFallingUs = 0;
+
+void IRAM_ATTR irFallingISR() {
+  gFallingCount++;
+  gLastFallingUs = (uint32_t)micros();
 }
 
-volatile uint32_t lastEdgeUs = 0;
-volatile bool lastLevel = true;
-volatile uint32_t lastOnUs = 0;
-
-volatile uint16_t validBurstCount = 0;
-volatile uint16_t framesSeen = 0;
-volatile uint16_t noiseEdges = 0;
-
-volatile uint32_t burstWindowStartMs = 0;
-volatile uint32_t pendingFrameMs = 0;
-
-void IRAM_ATTR onIrEdge() {
-  uint32_t nowUs = (uint32_t)micros();
-  bool level = digitalRead(IR_IN_PIN);
-
-  if (lastEdgeUs == 0) {
-    lastEdgeUs = nowUs;
-    lastLevel = level;
-    return;
-  }
-
-  uint32_t durUs = nowUs - lastEdgeUs;
-
-  if (lastLevel == false) {
-    // ON (LOW)
-    if (inRange(durUs, ON_MIN_US, ON_MAX_US)) {
-      lastOnUs = durUs;
-    } else {
-      lastOnUs = 0;
-      noiseEdges++;
-    }
-  } else {
-    // OFF (HIGH)
-    uint32_t nowMs = (uint32_t)millis();
-
-    if (burstWindowStartMs != 0 && (nowMs - burstWindowStartMs) > BURST_WINDOW_MS) {
-      validBurstCount = 0;
-      burstWindowStartMs = 0;
-      lastOnUs = 0;
-    }
-
-    if (durUs >= FRAME_GAP_MIN_US) {
-      if (validBurstCount >= MIN_VALID_BURSTS_FOR_FRAME) {
-        framesSeen++;
-        pendingFrameMs = nowMs;
-      }
-      validBurstCount = 0;
-      burstWindowStartMs = 0;
-      lastOnUs = 0;
-
-    } else if (inRange(durUs, OFF_MIN_US, OFF_MAX_US)) {
-      if (lastOnUs != 0) {
-        if (validBurstCount == 0) burstWindowStartMs = nowMs;
-        validBurstCount++;
-        lastOnUs = 0;
-      } else {
-        noiseEdges++;
-      }
-    } else {
-      noiseEdges++;
-      lastOnUs = 0;
-    }
-  }
-
-  lastEdgeUs = nowUs;
-  lastLevel = level;
-}
-
-void Init() {
-  pinMode(IR_IN_PIN, INPUT_PULLUP);
-  lastEdgeUs = 0;
-  lastLevel = digitalRead(IR_IN_PIN);
-  attachInterrupt(digitalPinToInterrupt(IR_IN_PIN), onIrEdge, CHANGE);
-}
-
-bool ConsumeLapEvent(uint32_t* out_ms) {
-  static uint32_t lastLapMs = 0;
-
-  uint32_t frameMs = 0;
-  noInterrupts();
-  frameMs = pendingFrameMs;
-  pendingFrameMs = 0;
-  interrupts();
-
-  if (frameMs == 0) return false;
-  if ((frameMs - lastLapMs) < COOLDOWN_MS) return false;
-
-  lastLapMs = frameMs;
-  if (out_ms) *out_ms = frameMs;
-  return true;
-}
-
-void PrintStatsIfDue() {
-  static uint32_t lastPrintMs = 0;
-  uint32_t now = millis();
-  if (now - lastPrintMs < 500) return;
-  lastPrintMs = now;
-
-  uint16_t bursts = 0, f = 0, n = 0;
-  bool lvl = true;
-  uint32_t winStart = 0;
-
-  noInterrupts();
-  bursts = validBurstCount;
-  f = framesSeen;
-  n = noiseEdges;
-  lvl = lastLevel;
-  winStart = burstWindowStartMs;
-  interrupts();
-
-  Serial.printf("IR t=%lu | lvl=%s | bursts=%u | frames=%u | noise=%u | winAge=%lu\n",
-                (unsigned long)now,
-                lvl ? "HIGH" : "LOW",
-                (unsigned)bursts,
-                (unsigned)f,
-                (unsigned)n,
-                (winStart == 0) ? 0UL : (unsigned long)(now - winStart));
-}
-
-} // namespace ir
-
-// ==============================
-// UI / Display / Touch
-// ==============================
-namespace {
-
-UWORD* gFrame = nullptr;
-
-bool last_touch_active = false;
-uint16_t last_touch_x = 0;
-uint16_t last_touch_y = 0;
-
-// Lap tracking
-constexpr uint32_t kMinLapTimeMs = 5000;
-uint32_t lap_count = 0;
-uint32_t last_valid_lap_ms = 0;
-
-void DrawUI(bool touch_active, uint16_t x, uint16_t y) {
+void DrawUI(bool beaconPresent, uint16_t fallsLast, uint8_t onStreak, uint8_t offStreak, uint32_t lastLowAgeMs) {
   if (!gFrame) return;
 
   Paint_SelectImage((UBYTE*)gFrame);
@@ -192,120 +65,147 @@ void DrawUI(bool touch_active, uint16_t x, uint16_t y) {
   snprintf(lap_text, sizeof(lap_text), "Lap: %lu", (unsigned long)lap_count);
   Paint_DrawString_EN(8, 32, lap_text, &Font20, GREEN, BLACK);
 
-  if (touch_active) {
-    char xy[32];
-    snprintf(xy, sizeof(xy), "Touch %u,%u", x, y);
-    Paint_DrawString_EN(8, 60, xy, &Font16, WHITE, BLACK);
+  if (last_touch_active) {
+    char t[48];
+    snprintf(t, sizeof(t), "Touch %u,%u", last_touch_x, last_touch_y);
+    Paint_DrawString_EN(8, 60, t, &Font16, WHITE, BLACK);
   } else {
     Paint_DrawString_EN(8, 60, "No touch", &Font16, RED, BLACK);
   }
 
+  char ir1[64];
+  snprintf(ir1, sizeof(ir1), "IR pin=%u falls=%u/%lums", (unsigned)IR_IN_PIN, (unsigned)fallsLast, (unsigned long)SAMPLE_MS);
+  Paint_DrawString_EN(8, 88, ir1, &Font16, WHITE, BLACK);
+
+  char ir2[64];
+  snprintf(ir2, sizeof(ir2), "Beacon=%s on=%u off=%u",
+           beaconPresent ? "YES" : "NO",
+           (unsigned)onStreak, (unsigned)offStreak);
+  Paint_DrawString_EN(8, 108, ir2, &Font16, beaconPresent ? GREEN : RED, BLACK);
+
+  char ir3[64];
+  snprintf(ir3, sizeof(ir3), "lastLOW=%lums", (unsigned long)lastLowAgeMs);
+  Paint_DrawString_EN(8, 128, ir3, &Font16, WHITE, BLACK);
+
   AMOLED_1IN64_Display(gFrame);
 }
 
-} // namespace
-
 void setup() {
   Serial.begin(115200);
-
   uint32_t t0 = millis();
   while (!Serial && (millis() - t0) < 1500) { delay(10); }
 
   Serial.println();
-  Serial.println("BOOT: starting PiLapTimer (RP2350)");
-  Serial.println("BOOT: Serial OK");
+  Serial.println("BOOT: PiLapTimer receiver (stable trigger)");
 
-  // IR early
-  ir::Init();
-  Serial.println("BOOT: IR init OK (GPIO2)");
-
-  // Match Waveshare demo init sequence
-  Serial.println("BOOT: DEV_Module_Init...");
   if (DEV_Module_Init() != 0) {
-    Serial.println("BOOT: DEV_Module_Init FAILED");
+    Serial.println("DEV_Module_Init FAILED");
     while (true) delay(1000);
   }
-  Serial.println("BOOT: DEV_Module_Init OK");
 
-  Serial.println("BOOT: QSPI init...");
-  // These calls are REQUIRED before AMOLED_1IN64_Init on this board (per demo)
   QSPI_GPIO_Init(qspi);
   QSPI_PIO_Init(qspi);
   QSPI_1Wrie_Mode(&qspi);
-  Serial.println("BOOT: QSPI init OK");
 
-  Serial.println("BOOT: AMOLED_1IN64_Init...");
   AMOLED_1IN64_Init();
-  Serial.println("BOOT: AMOLED init OK");
-
   AMOLED_1IN64_SetBrightness(100);
   AMOLED_1IN64_Clear(WHITE);
 
-  // Allocate full framebuffer like demo
   UDOUBLE imageSizeBytes = (UDOUBLE)AMOLED_1IN64_HEIGHT * (UDOUBLE)AMOLED_1IN64_WIDTH * 2;
   gFrame = (UWORD*)malloc(imageSizeBytes);
   if (!gFrame) {
-    Serial.println("BOOT: framebuffer malloc FAILED");
+    Serial.println("framebuffer malloc FAILED");
     while (true) delay(1000);
   }
-  Serial.println("BOOT: framebuffer malloc OK");
 
   Paint_NewImage((UBYTE*)gFrame, AMOLED_1IN64.WIDTH, AMOLED_1IN64.HEIGHT, 0, WHITE);
   Paint_SetScale(65);
   Paint_SetRotate(ROTATE_0);
-  Paint_Clear(WHITE);
+  Paint_Clear(BLACK);
   AMOLED_1IN64_Display(gFrame);
 
-  Serial.println("BOOT: Touch init...");
-  // Use Point mode for normal XY reporting (matches common demo use)
   FT3168_Init(FT3168_Point_Mode);
-  Serial.println("BOOT: Touch init OK");
 
-  Serial.println("BOOT: init complete");
-  DrawUI(false, 0, 0);
+  pinMode(IR_IN_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(IR_IN_PIN), irFallingISR, FALLING);
+
+  Serial.printf("IR pin=%u, sample=%lums, on>=%u, off<=%u, streak=%u\n",
+                (unsigned)IR_IN_PIN, (unsigned long)SAMPLE_MS,
+                (unsigned)ON_THRESHOLD, (unsigned)OFF_THRESHOLD, (unsigned)STREAK_N);
+
+  DrawUI(false, 0, 0, 0, 999999);
 }
 
 void loop() {
-  // IR lap event
-  uint32_t t_ms = 0;
-  if (ir::ConsumeLapEvent(&t_ms)) {
-    if (last_valid_lap_ms != 0) {
-      uint32_t lap_delta = t_ms - last_valid_lap_ms;
-      if (lap_delta >= kMinLapTimeMs) {
-        lap_count++;
-        last_valid_lap_ms = t_ms;
-        Serial.printf("LAP %lu @ %lu ms | delta=%lu ms\n",
-                      (unsigned long)lap_count,
-                      (unsigned long)t_ms,
-                      (unsigned long)lap_delta);
-      } else {
-        Serial.printf("IGNORE (min lap) @ %lu ms | delta=%lu ms\n",
-                      (unsigned long)t_ms,
-                      (unsigned long)lap_delta);
-      }
-    } else {
-      lap_count++;
-      last_valid_lap_ms = t_ms;
-      Serial.printf("LAP %lu @ %lu ms | delta=0\n",
-                    (unsigned long)lap_count,
-                    (unsigned long)t_ms);
-    }
-    // Update UI immediately on lap
-    DrawUI(last_touch_active, last_touch_x, last_touch_y);
-  }
+  uint32_t nowMs = millis();
 
   // Touch
-  bool touch_active = FT3168_Get_Point();
-  uint16_t touch_x = FT3168.x_point;
-  uint16_t touch_y = FT3168.y_point;
+  bool ta = FT3168_Get_Point();
+  last_touch_active = ta;
+  last_touch_x = FT3168.x_point;
+  last_touch_y = FT3168.y_point;
 
-  if (touch_active != last_touch_active ||
-      (touch_active && (touch_x != last_touch_x || touch_y != last_touch_y))) {
-    last_touch_active = touch_active;
-    last_touch_x = touch_x;
-    last_touch_y = touch_y;
-    DrawUI(touch_active, touch_x, touch_y);
+  // IR sampling & state machine
+  static uint32_t lastSampleMs = 0;
+  static uint32_t lastFallsSnapshot = 0;
+
+  static bool beaconPresent = false;
+  static uint8_t onStreak = 0;
+  static uint8_t offStreak = 0;
+
+  static uint16_t fallsLast = 0;
+  static uint32_t lastLowAgeMs = 999999;
+
+  if (nowMs - lastSampleMs >= SAMPLE_MS) {
+    lastSampleMs = nowMs;
+
+    uint32_t falls = 0, lastFallUs = 0;
+    noInterrupts();
+    falls = gFallingCount;
+    lastFallUs = gLastFallingUs;
+    interrupts();
+
+    uint32_t fallsDelta = falls - lastFallsSnapshot;
+    lastFallsSnapshot = falls;
+
+    fallsLast = (fallsDelta > 65535) ? 65535 : (uint16_t)fallsDelta;
+    if (lastFallUs != 0) lastLowAgeMs = (uint32_t)((micros() - lastFallUs) / 1000UL);
+
+    // Update streaks
+    if (fallsLast >= ON_THRESHOLD) {
+      onStreak = (onStreak < 255) ? (onStreak + 1) : 255;
+    } else {
+      onStreak = 0;
+    }
+
+    if (fallsLast <= OFF_THRESHOLD) {
+      offStreak = (offStreak < 255) ? (offStreak + 1) : 255;
+    } else {
+      offStreak = 0;
+    }
+
+    bool lastPresent = beaconPresent;
+
+    // Hysteresis with persistence
+    if (!beaconPresent && onStreak >= STREAK_N) beaconPresent = true;
+    if (beaconPresent && offStreak >= STREAK_N) beaconPresent = false;
+
+    // Lap on absent->present
+    if (beaconPresent && !lastPresent) {
+      uint32_t sinceLast = (last_lap_ms == 0) ? 999999UL : (nowMs - last_lap_ms);
+
+      if (sinceLast >= LAP_COOLDOWN_MS && sinceLast >= MIN_LAP_MS) {
+        lap_count++;
+        last_lap_ms = nowMs;
+        Serial.printf("LAP %lu @ %lu ms (falls=%u)\n",
+                      (unsigned long)lap_count, (unsigned long)nowMs, (unsigned)fallsLast);
+      } else {
+        Serial.printf("IGNORE @ %lu ms (cooldown/minlap) falls=%u\n",
+                      (unsigned long)nowMs, (unsigned)fallsLast);
+      }
+    }
+
+    // UI update at sample rate
+    DrawUI(beaconPresent, fallsLast, onStreak, offStreak, lastLowAgeMs);
   }
-
-  ir::PrintStatsIfDue();
 }
