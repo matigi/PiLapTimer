@@ -75,6 +75,8 @@ Verify touchscreen input and coordinate mapping.
 ---
 
 ## Milestone 3 – IR Lap Trigger Detection
+## hw-m03-rx-touch-ir-ok
+**Status: COMPLETE**
 
 ### Objective
 Implement low-latency lap detection using IR receiver and interrupts.
