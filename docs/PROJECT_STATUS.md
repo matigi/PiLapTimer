@@ -1,35 +1,64 @@
-# Project Status – PiLapTimer
+# PiLapTimer – Project Status
 
-## Current Phase
-Phase 1 – Wired IR lap timing using RP2350 (no wireless)
+Last updated: Phase 1, Milestone 3 complete
 
-## Locked Decisions
-- IR beacon:
-  - ESP32-S3, GPIO9
-  - 38 kHz carrier
-  - Burst-gated only (no continuous IR)
-  - Pattern: 10 × (2ms ON / 2ms OFF) + ~20ms gap
-- IR receiver:
-  - Demodulating 38 kHz (TSOP / VS1838 class)
-  - Connected directly to RP2350 GPIO2
-  - Frame-based detection + cooldown
-- Cooldown-based lap triggering (2s default)
+---
 
-## Known-Good Parameters
-- FRAME_GAP_MIN_US ≈ 19 ms
-- MIN_VALID_BURSTS_FOR_FRAME = 10
-- BURST_WINDOW_MS = 120 ms
+## What Works Today
 
-## Explicitly Out of Scope (for now)
-- Wireless telemetry
-- ESP32 on kart
-- Continuous IR illumination
-- Ultra-long range tuning
+- RP2350 AMOLED display initializes and updates correctly
+- Touch controller (FT3168) reads coordinates reliably
+- IR receiver detects beacon presence consistently
+- Lap counter increments correctly
+- Cooldown and minimum lap time enforced
+- System stable without false triggers
 
-## Next Milestone
-Integrate IR receiver core into RP2350 UI and lap timing state machine.
+Verified via:
+- Serial logs
+- Oscilloscope captures
+- Manual IR blocking/unblocking tests
 
-## Display Bring-Up (Locked)
-- AMOLED init MUST follow Waveshare demo sequence
-- QSPI_GPIO_Init → QSPI_PIO_Init → QSPI_1Wrie_Mode → AMOLED_1IN64_Init
-- Full framebuffer required for AMOLED_1IN64_Display()
+---
+
+## Known-Good Commit / Tag
+
+- **Tag:** `hw-m03-rx-touch-ir-ok`
+- This tag represents a stable baseline
+- Future work must build on this tag
+
+---
+
+## Hardware Summary
+
+- RP2350 Touch AMOLED 1.64
+- IR receiver powered at 3.3V
+- IR OUT → GPIO1 (direct)
+- ESP32-S3 IR beacon (burst-gated)
+
+---
+
+## Current Focus
+
+Next work is **user-facing UX and session logic**, not signal detection.
+
+Specifically:
+- Session start/stop/reset
+- Lap timing display
+- Best/last lap tracking
+- CSV logging over Serial
+
+---
+
+## Known Risks / Notes
+
+- Outdoor sunlight may reduce IR margin; hysteresis currently mitigates this
+- IR thresholds may need minor tuning during outdoor field testing
+- Beacon enclosure/aiming not finalized yet
+
+---
+
+## Not Started Yet
+
+- Wireless ESP32 integration
+- Data storage
+- Multi-kart support
