@@ -4,19 +4,20 @@
 #define IR_PIN        9
 #define IR_FREQ       38000
 #define IR_RES        8
-#define IR_DUTY       85      // ~33%
+#define IR_DUTY       85      // ~33% duty on carrier
 
-#define BURST_ON_MS   2
-#define BURST_OFF_MS  2
+// Envelope timings (microseconds)
+#define BURST_ON_US    600    // 0.6 ms ON
+#define BURST_OFF_US   600    // 0.6 ms OFF
 
-#define BURSTS_PER_PACKET 10
-#define FRAME_GAP_MS       20
+#define BURSTS_PER_PACKET  32 // stronger presence than 10
+#define FRAME_GAP_US     35000 // 35 ms gap between packets
 // ================================================
 
-bool irOn = false;
-uint32_t lastToggle = 0;
-uint8_t burstCount = 0;
-bool inFrameGap = false;
+static bool irOn = false;
+static uint32_t lastToggleUs = 0;
+static uint8_t burstCount = 0;
+static bool inFrameGap = false;
 
 void setRGB(uint8_t r, uint8_t g, uint8_t b) {
   neopixelWrite(RGB_BUILTIN, r, g, b);
@@ -36,47 +37,48 @@ void setup() {
   Serial.begin(115200);
   delay(100);
 
-  setRGB(0, 0, 40); // booting
+  setRGB(0, 0, 40); // boot
   pwmStart();
 
-  irEnable(true);
-  lastToggle = millis();
   burstCount = 0;
   inFrameGap = false;
+
+  irEnable(true);
+  lastToggleUs = micros();
 
   setRGB(0, 40, 0); // transmitting
 }
 
 void loop() {
-  uint32_t now = millis();
+  uint32_t nowUs = micros();
 
   if (inFrameGap) {
-    if (now - lastToggle >= FRAME_GAP_MS) {
+    if ((uint32_t)(nowUs - lastToggleUs) >= FRAME_GAP_US) {
       inFrameGap = false;
       burstCount = 0;
       irEnable(true);
-      lastToggle = now;
+      lastToggleUs = nowUs;
     }
     return;
   }
 
   if (irOn) {
-    if (now - lastToggle >= BURST_ON_MS) {
+    if ((uint32_t)(nowUs - lastToggleUs) >= BURST_ON_US) {
       irEnable(false);
-      lastToggle = now;
+      lastToggleUs = nowUs;
     }
   } else {
-    if (now - lastToggle >= BURST_OFF_MS) {
+    if ((uint32_t)(nowUs - lastToggleUs) >= BURST_OFF_US) {
       burstCount++;
 
       if (burstCount >= BURSTS_PER_PACKET) {
         // enter frame gap
         inFrameGap = true;
         irEnable(false);
-        lastToggle = now;
+        lastToggleUs = nowUs;
       } else {
         irEnable(true);
-        lastToggle = now;
+        lastToggleUs = nowUs;
       }
     }
   }
