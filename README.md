@@ -12,6 +12,8 @@ Current development is focused on:
 For detailed milestone tracking, see:
 docs/PROJECT_STATUS.md
 
+- docs/UI_FLOW_PHASE2.md – Phase 2 touchscreen UI flow and transitions
+
 ## Specification Hierarchy
 
 This project has multiple functional specifications by phase.
@@ -25,3 +27,7 @@ This project has multiple functional specifications by phase.
   (Phase 1 – Core lap timing, IR detection)
 
 If there is any conflict, FUNCTIONAL_SPEC_v2.md takes precedence.
+
+For full documentation index and authority rules, see:
+docs/README.md
+
