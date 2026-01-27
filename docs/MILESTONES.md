@@ -132,13 +132,27 @@ Prevent false or duplicate lap detections.
 This is the stable Phase 1 baseline.
 ---
 
-## hw-m05 – Driver & Lap Config UI (NEXT)
+## hw-m06 – Driver Selection + Fixed-Lap Competitive Runs
+**Status: IN PROGRESS**
 
-- Implements UI screens S1 (IDLE) and S2 (ARMED)
-- Touch-based driver selection (1–10)
-- Touch-based lap count selection
-- State transitions per docs/UI_FLOW_PHASE2.md
-- No changes to IR detection logic
+### Objective
+Add Phase 2 driver selection, fixed-lap session flow, and finished results display.
+
+### Scope
+- Driver selection (1–10) on S1
+- Target lap count selection (min 1, max 99) on S1
+- S2 Armed → S3 Running → S4 Finished transitions
+- Lap beep on each valid lap
+- Distinct completion beep on final lap
+- Display total, best, and average on results screen
+- In-memory storage of last run per driver (no persistence)
+
+### Definition of Done
+- Driver and lap count changes only allowed in IDLE
+- First beacon starts timing; laps counted until target reached
+- Results screen shows total, best, average, and requires DONE to exit
+- Touch ignored during RUNNING
+- IR detection logic unchanged
 
 ## Milestone 5 – System State Machine
 
@@ -305,4 +319,3 @@ Validate system against functional specification acceptance criteria.
 - UI remains responsive throughout session
 
 ---
-

@@ -1,6 +1,6 @@
 # PiLapTimer – Project Status
 
-Last updated: Phase 1, Milestone 3 complete
+Last updated: Phase 2, hw-m06 in progress
 
 # Project Status (Authoritative)
 
@@ -45,13 +45,14 @@ Verified via:
 
 ## Current Focus
 
-Next work is **user-facing UX and session logic**, not signal detection.
+Current focus is **hw-m06: driver selection + fixed-lap competitive runs**.
 
 Specifically:
-- Session start/stop/reset
-- Lap timing display
-- Best/last lap tracking
-- CSV logging over Serial
+- Driver selection (1–10) on the idle screen
+- Target lap selection before starting a run
+- Armed → Running → Finished flow per UI_FLOW_PHASE2.md
+- Results screen with total, best, and average lap times
+- Non-blocking lap and completion beeps
 
 ---
 
