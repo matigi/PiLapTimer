@@ -1,4 +1,4 @@
-// ==== known-good config ====
+// ==== Milestone 4 known-good config ====
 #include <Arduino.h>
 
 #include "DEV_Config.h"
