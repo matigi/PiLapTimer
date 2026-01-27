@@ -11,3 +11,17 @@ Current development is focused on:
 
 For detailed milestone tracking, see:
 docs/PROJECT_STATUS.md
+
+## Specification Hierarchy
+
+This project has multiple functional specifications by phase.
+
+**Authoritative (Current):**
+- docs/FUNCTIONAL_SPEC_v2.md  
+  (Phase 2 – Competitive Time Attack, multi-driver UX)
+
+**Historical / Reference:**
+- docs/gokart-lap-timer-functional-spec.md  
+  (Phase 1 – Core lap timing, IR detection)
+
+If there is any conflict, FUNCTIONAL_SPEC_v2.md takes precedence.
