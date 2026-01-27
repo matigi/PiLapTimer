@@ -3,6 +3,9 @@
 This document is the single source of truth for Codex and future contributors.
 Read this fully before making changes.
 
+Touch UI behavior must follow docs/UI_FLOW_PHASE2.md exactly.
+Do not invent new screens or transitions without explicit instruction.
+
 ---
 
 ## Project Overview
