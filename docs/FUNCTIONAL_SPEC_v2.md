@@ -1,3 +1,9 @@
+> ⚠️ Status: Historical Reference (Phase 1)
+>
+> This document describes the original Phase 1 functionality.
+> Current development follows FUNCTIONAL_SPEC_v2.md.
+
+
 # PiLapTimer – Functional Specification v2
 ## Phase 2: Competitive Time Attack Mode
 
