@@ -118,6 +118,18 @@ Prevent false or duplicate lap detections.
 - Laps shorter than minimum time are rejected
 - Valid laps continue to register normally
 
+## hw-m04-session-ui-ok 
+**Status: COMPLETE**
+
+- Touch-based Start / Stop session control
+- Reliable IR lap detection (GPIO1, 3.3V)
+- Hysteresis + persistence (20ms sampling)
+- Lap cooldown + minimum lap enforced
+- Last lap + best lap tracking
+- CSV lap output over Serial
+- Verified via bench testing and real beacon exposure
+
+This is the stable Phase 1 baseline.
 ---
 
 ## Milestone 5 – System State Machine
