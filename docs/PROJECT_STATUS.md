@@ -2,6 +2,12 @@
 
 Last updated: Phase 1, Milestone 3 complete
 
+# Project Status (Authoritative)
+
+This file is the authoritative source for milestone completion and current development focus.
+
+The README provides a high-level summary only.
+
 ---
 
 ## What Works Today
