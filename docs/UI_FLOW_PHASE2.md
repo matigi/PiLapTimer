@@ -49,8 +49,7 @@ If conflicts arise, this document governs screen flow and interaction behavior.
 Confirm device is powered and initializing.
 
 **Display:**
-PiLapTimer
-Initializing…
+Displays static splash image from assets/ui/splash/ before entering Idle state.
 
 **Behavior:**
 - Shown briefly on boot (0.5–1.0 s)
