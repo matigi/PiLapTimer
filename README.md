@@ -31,3 +31,12 @@ If there is any conflict, FUNCTIONAL_SPEC_v2.md takes precedence.
 For full documentation index and authority rules, see:
 docs/README.md
 
+# UI Splash Assets
+
+Static UI assets used by firmware.
+
+Rules:
+- Files in this directory are treated as read-only assets
+- Do not modify without updating the source image
+- Firmware should reference these assets but not generate or alter them
+
