@@ -132,13 +132,32 @@ Prevent false or duplicate lap detections.
 This is the stable Phase 1 baseline.
 ---
 
-## hw-m05 – Driver & Lap Config UI (NEXT)
+## hw-m05 – Known-Good Receiver + Beacon Baseline
+**Status: COMPLETE**
 
-- Implements UI screens S1 (IDLE) and S2 (ARMED)
-- Touch-based driver selection (1–10)
-- Touch-based lap count selection
-- State transitions per docs/UI_FLOW_PHASE2.md
-- No changes to IR detection logic
+### Objective
+Lock in the proven IR receiver configuration and the burst-gated beacon baseline.
+
+### Scope
+- RP2350 receiver uses GPIO1 (Arduino pin 1), INPUT_PULLUP, falling-edge ISR.
+- Hysteresis + persistence sampling window logic (20 ms window).
+- Lap cooldown + minimum lap time enforcement.
+- ESP32-S3 beacon outputs burst-gated 38 kHz carrier.
+
+### Known-Good Parameters (recorded)
+- IR pin: GPIO1 / Arduino pin 1 (3.3V receiver OUT direct)
+- Sample window: 20 ms
+- ON threshold: ≥ 3 falling edges per window
+- OFF threshold: ≤ 1 falling edge per window
+- Required streak: 2 consecutive windows
+- Cooldown: 2000 ms
+- Minimum lap time: 5000 ms
+
+### Definition of Done / How to Verify
+- Receiver serial prints boot banner and IR tuning line.
+- Bench test cover/uncover of beacon toggles presence.
+- While RUNNING, valid absent→present transitions register laps.
+- Cooldown/min-lap rejects rapid triggers (serial `IGNORE` lines).
 
 ## Milestone 5 – System State Machine
 
@@ -305,4 +324,3 @@ Validate system against functional specification acceptance criteria.
 - UI remains responsive throughout session
 
 ---
-
