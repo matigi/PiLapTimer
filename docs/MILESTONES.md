@@ -154,8 +154,6 @@ Add Phase 2 driver selection, fixed-lap session flow, and finished results displ
 - Touch ignored during RUNNING
 - IR detection logic unchanged
 
-## Milestone 5 – System State Machine
-
 ### Objective
 Implement core system states and transitions.
 
