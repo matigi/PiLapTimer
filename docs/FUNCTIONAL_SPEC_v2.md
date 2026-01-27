@@ -37,6 +37,9 @@ This is a time-attack / hot-lap system, not wheel-to-wheel race control.
 
 ## 3. Operating Modes
 
+Detailed touchscreen layouts and state transitions are defined in:
+docs/UI_FLOW_PHASE2.md
+
 ### 3.1 Idle Mode
 Default state after boot or session end.
 
