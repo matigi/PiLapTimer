@@ -132,15 +132,16 @@ Prevent false or duplicate lap detections.
 This is the stable Phase 1 baseline.
 ---
 
-## hw-m05 – Driver & Lap Config UI (NEXT)
+
+
+## Milestone 5 – System State Machine
+## hw-m05 – Driver & Lap Config UI
 
 - Implements UI screens S1 (IDLE) and S2 (ARMED)
 - Touch-based driver selection (1–10)
 - Touch-based lap count selection
 - State transitions per docs/UI_FLOW_PHASE2.md
 - No changes to IR detection logic
-
-## Milestone 5 – System State Machine
 
 ### Objective
 Implement core system states and transitions.
