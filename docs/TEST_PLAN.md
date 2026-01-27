@@ -193,6 +193,48 @@ Each milestone must pass all relevant tests before merging to `main`.
 
 ---
 
+## 4.6 Milestone hw-m05 – Known-Good Receiver + Beacon Baseline
+
+### Test 4.6.1 – Bench Line-of-Sight Toggle
+**Type:** Integration  
+**Procedure:**
+1. Power the ESP32-S3 beacon (burst-gated, 38 kHz).
+2. With the RP2350 receiver running, cover the IR path between beacon and receiver.
+3. Uncover the IR path and repeat several times.
+
+**Expected Result:**
+- Serial output shows beacon presence toggling with cover/uncover events.
+- No false lap increments while IDLE.
+
+**Pass Criteria:**
+- Beacon present state visibly flips in UI and/or serial with each cover/uncover.
+
+### Test 4.6.2 – Lap Trigger While RUNNING
+**Type:** Integration  
+**Procedure:**
+1. Tap START to enter RUNNING.
+2. Uncover the beacon path to create a fresh absent→present transition.
+
+**Expected Result:**
+- Lap count increments.
+- Serial prints a `LAP` line and CSV line.
+
+**Pass Criteria:**
+- Lap count increases by 1 per valid transition.
+
+### Test 4.6.3 – Cooldown / Min Lap Ignore
+**Type:** Integration  
+**Procedure:**
+1. While RUNNING, repeatedly toggle the beacon rapidly (faster than cooldown/min lap).
+
+**Expected Result:**
+- Serial prints `IGNORE` lines with `(debounce)` or `(minlap)` reasons.
+
+**Pass Criteria:**
+- No new lap is recorded until both cooldown and minimum lap time elapse.
+
+---
+
 ## 4.6 Milestone 5 – State Machine
 
 ### Test 5.1 – State Transition Validity

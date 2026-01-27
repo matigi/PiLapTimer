@@ -1,4 +1,4 @@
-// ==== Milestone 4 known-good config ====
+// ==== hw-m05 known-good receiver baseline ====
 #include <Arduino.h>
 
 #include "DEV_Config.h"
