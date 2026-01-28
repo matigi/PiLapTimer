@@ -45,6 +45,8 @@ void (*driverNextHandler)() = nullptr;
 void (*lapsPrevHandler)() = nullptr;
 void (*lapsNextHandler)() = nullptr;
 
+lv_style_t bestRowStyle;
+
 lv_timer_t *resetHoldTimer = nullptr;
 lv_timer_t *bestIconTimer = nullptr;
 uint32_t resetHoldStart = 0;
