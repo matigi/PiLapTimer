@@ -1,6 +1,6 @@
 # PiLapTimer – Project Status
 
-Last updated: hw-m05-touch-beeper-ok baseline
+Last updated: time-attack UI + lap timing validation
 
 # Project Status (Authoritative)
 
@@ -14,14 +14,15 @@ The README provides a high-level summary only.
 
 - RP2350 AMOLED display initializes and updates correctly
 - Touch controller (FT3168) reads coordinates reliably
-- Touch UI test screen renders raw + normalized coordinates
-- Buzzer beeps on touch events
-- Display stays stable with simplified firmware
+- Time-attack UI flow: driver selection, lap count selection, arming, run, results
+- IR lap detection starts runs, records laps, and finishes at target laps
+- Buzzer beeps on lap events and completion
+- Display stays stable with full UI flow
 
 Verified via:
 - Serial logs
 - Oscilloscope captures
-- Manual IR blocking/unblocking tests
+- On-device time-attack session testing (touch menus, lap timing, beeper)
 
 ---
 
@@ -44,13 +45,12 @@ Verified via:
 
 ## Current Focus
 
-Current focus is **hw-m05: touch + beeper recovery baseline**.
+Current focus is **hw-m06: lap timing engine + time-attack UI validation**.
 
 Specifically:
-- Confirm stable touch down/up detection
-- Verify buzzer output on touch
-- Keep the demo UI + touch crosshair stable
-- Reintroduce lap-timer features once input/output are verified
+- Verify driver/lap selection and arming flow
+- Validate lap timing accuracy and lockout behavior
+- Confirm beeper and screen updates during active sessions
 
 ---
 
@@ -63,8 +63,6 @@ Specifically:
 
 ## Not Started Yet
 
-- Reintroducing IR lap detection
-- Driver selection + competitive runs
 - Wireless ESP32 integration
 - Data storage
 - Multi-kart support
