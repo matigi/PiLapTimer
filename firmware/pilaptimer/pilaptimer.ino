@@ -569,6 +569,30 @@ static void HandleReset() {
   gState = UI_IDLE;
   RenderState();
 }
+
+static void HandleDriverPrev() {
+  if (gState != UI_IDLE) return;
+  gSelectedDriver = (gSelectedDriver == 1) ? MAX_DRIVERS : (gSelectedDriver - 1);
+  RenderState();
+}
+
+static void HandleDriverNext() {
+  if (gState != UI_IDLE) return;
+  gSelectedDriver = (gSelectedDriver == MAX_DRIVERS) ? 1 : (gSelectedDriver + 1);
+  RenderState();
+}
+
+static void HandleLapsPrev() {
+  if (gState != UI_IDLE) return;
+  gSelectedLaps = (gSelectedLaps > MIN_LAPS) ? (gSelectedLaps - 1) : MIN_LAPS;
+  RenderState();
+}
+
+static void HandleLapsNext() {
+  if (gState != UI_IDLE) return;
+  gSelectedLaps = (gSelectedLaps < MAX_LAPS) ? (gSelectedLaps + 1) : MAX_LAPS;
+  RenderState();
+}
 #endif
 
 // ----------------- Arduino -----------------
@@ -645,7 +669,12 @@ void setup() {
   lv_init();
   lv_port_disp_init();
   lv_port_indev_init();
-  lv_time_attack_ui_init(HandleStartStop, HandleReset);
+  lv_time_attack_ui_init(HandleStartStop,
+                         HandleReset,
+                         HandleDriverPrev,
+                         HandleDriverNext,
+                         HandleLapsPrev,
+                         HandleLapsNext);
   lv_obj_invalidate(lv_scr_act());
   lv_timer_handler();
 #endif
@@ -665,6 +694,7 @@ void loop() {
     lv_tick_inc(delta);
     lastTick = now;
   }
+  lv_obj_invalidate(lv_scr_act());
   lv_timer_handler();
 #else
   uint32_t now = millis();
