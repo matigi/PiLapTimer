@@ -19,7 +19,12 @@ struct UiSnapshot {
   int32_t deltaMs;
 };
 
-void lv_time_attack_ui_init(void (*startStopCb)(), void (*resetCb)());
+void lv_time_attack_ui_init(void (*startStopCb)(),
+                            void (*resetCb)(),
+                            void (*driverPrevCb)(),
+                            void (*driverNextCb)(),
+                            void (*lapsPrevCb)(),
+                            void (*lapsNextCb)());
 void lv_time_attack_ui_update(const UiSnapshot &snapshot);
 
 #endif
