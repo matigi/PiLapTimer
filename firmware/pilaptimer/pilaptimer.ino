@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <string.h>
 
 #include "DEV_Config.h"
 #include "AMOLED_1in64.h"
@@ -19,6 +20,13 @@
 
 static const uint16_t DISP_W = 280;
 static const uint16_t DISP_H = 456;
+static const uint16_t LOGICAL_W = DISP_H;
+static const uint16_t LOGICAL_H = DISP_W;
+static const UWORD UI_ROTATION = ROTATE_270;
+
+#ifndef TOUCH_DEBUG
+#define TOUCH_DEBUG 0
+#endif
 
 // IMPORTANT: Do NOT use GP6/GP7 (I2C). Use GP16 (wire buzzer + to GP16, - to GND).
 static const uint8_t  BUZZER_PIN = 16;
@@ -43,6 +51,38 @@ struct Button {
   uint16_t h;
   const char* label;
 };
+
+// ----------------- UI layout constants -----------------
+static const uint16_t UI_MARGIN = 12;
+static const uint16_t UI_GAP = 10;
+static const uint16_t UI_COL_GAP = 12;
+static const uint16_t UI_LEFT_COL_W = 220;
+static const uint16_t UI_RIGHT_COL_W = LOGICAL_W - (UI_MARGIN * 2) - UI_COL_GAP - UI_LEFT_COL_W;
+static const uint16_t UI_HEADER_H = 28;
+static const uint16_t UI_ROW_H = 70;
+static const uint16_t UI_STEP_BTN = 52;
+static const uint16_t UI_START_H = 56;
+static const uint16_t UI_BUTTON_H = 52;
+
+static const uint16_t UI_LEFT_X = UI_MARGIN;
+static const uint16_t UI_RIGHT_X = UI_LEFT_X + UI_LEFT_COL_W + UI_COL_GAP;
+static const uint16_t UI_HEADER_Y = UI_MARGIN;
+static const uint16_t UI_SECTION_Y = UI_HEADER_Y + UI_HEADER_H + UI_GAP;
+static const uint16_t UI_DRIVER_Y = UI_SECTION_Y;
+static const uint16_t UI_LAPS_Y = UI_DRIVER_Y + UI_ROW_H + UI_GAP;
+static const uint16_t UI_START_Y = LOGICAL_H - UI_MARGIN - UI_START_H;
+
+static const uint16_t UI_STEP_MINUS_X = UI_LEFT_X + UI_LEFT_COL_W - (UI_STEP_BTN * 2 + UI_GAP);
+static const uint16_t UI_STEP_PLUS_X = UI_LEFT_X + UI_LEFT_COL_W - UI_STEP_BTN;
+static const uint16_t UI_STEP_Y_OFFSET = (UI_ROW_H - UI_STEP_BTN) / 2;
+
+static const uint16_t UI_BUTTON_PAIR_W = 150;
+static const uint16_t UI_BUTTON_PAIR_GAP = 12;
+static const uint16_t UI_BUTTON_PAIR_X = (LOGICAL_W - (UI_BUTTON_PAIR_W * 2 + UI_BUTTON_PAIR_GAP)) / 2;
+static const uint16_t UI_BUTTON_PAIR_Y = LOGICAL_H - UI_MARGIN - UI_BUTTON_H;
+
+static const uint16_t UI_CENTER_BUTTON_W = 180;
+static const uint16_t UI_CENTER_BUTTON_X = (LOGICAL_W - UI_CENTER_BUTTON_W) / 2;
 
 // ----------------- Beep (no tone) -----------------
 static void BeepNow(uint16_t freq = 2600, uint16_t ms = 25) {
@@ -97,6 +137,11 @@ static void NormalizeTouch(uint16_t rawX, uint16_t rawY, uint16_t &nx, uint16_t 
   ny = (uint16_t)y;
 }
 
+static void RotateTouch(uint16_t nx, uint16_t ny, uint16_t &rx, uint16_t &ry) {
+  rx = (LOGICAL_W - 1) - ny;
+  ry = nx;
+}
+
 // ----------------- IR lap trigger -----------------
 #ifndef IRAM_ATTR
 #define IRAM_ATTR
@@ -114,12 +159,33 @@ static bool HitTest(const Button &btn, uint16_t x, uint16_t y) {
   return (x >= btn.x && x < (btn.x + btn.w) && y >= btn.y && y < (btn.y + btn.h));
 }
 
-static void DrawButton(const Button &btn, uint16_t textColor = WHITE, uint16_t fillColor = BLUE) {
+static uint16_t TextWidth(const char* text, const sFONT* font) {
+  return (uint16_t)(strlen(text) * font->Width);
+}
+
+static void DrawCenteredText(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const char* text,
+                             const sFONT* font, uint16_t textColor, uint16_t bgColor) {
+  uint16_t textW = TextWidth(text, font);
+  uint16_t textH = font->Height;
+  uint16_t textX = x + (w > textW ? (w - textW) / 2 : 0);
+  uint16_t textY = y + (h > textH ? (h - textH) / 2 : 0);
+  Paint_DrawString_EN(textX, textY, text, (sFONT*)font, textColor, bgColor);
+}
+
+static void DrawButton(const Button &btn, const sFONT* font, uint16_t textColor, uint16_t fillColor, uint16_t borderColor = WHITE) {
   Paint_DrawRectangle(btn.x, btn.y, btn.x + btn.w, btn.y + btn.h, fillColor, DOT_PIXEL_1X1, DRAW_FILL_FULL);
-  Paint_DrawRectangle(btn.x, btn.y, btn.x + btn.w, btn.y + btn.h, textColor, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
-  uint16_t textX = btn.x + 6;
-  uint16_t textY = btn.y + 8;
-  Paint_DrawString_EN(textX, textY, btn.label, &Font16, fillColor, textColor);
+  Paint_DrawRectangle(btn.x, btn.y, btn.x + btn.w, btn.y + btn.h, borderColor, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
+  DrawCenteredText(btn.x, btn.y, btn.w, btn.h, btn.label, font, textColor, fillColor);
+}
+
+static void DrawHeader(const char* title) {
+  Paint_DrawString_EN(UI_MARGIN, UI_HEADER_Y, title, &Font20, WHITE, BLACK);
+}
+
+static void DrawValueBox(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const char* value) {
+  Paint_DrawRectangle(x, y, x + w, y + h, DARKBLUE, DOT_PIXEL_1X1, DRAW_FILL_FULL);
+  Paint_DrawRectangle(x, y, x + w, y + h, WHITE, DOT_PIXEL_1X1, DRAW_FILL_EMPTY);
+  DrawCenteredText(x, y, w, h, value, &Font24, WHITE, DARKBLUE);
 }
 
 static void FormatTime(char *out, size_t outSize, uint32_t ms) {
@@ -183,21 +249,21 @@ static uint32_t gLastUiMs = 0;
 static uint32_t gLastLapTriggerMs = 0;
 
 // Buttons (idle)
-static const Button BTN_DRIVER_MINUS = {18, 70, 40, 34, "-"};
-static const Button BTN_DRIVER_PLUS  = {220, 70, 40, 34, "+"};
-static const Button BTN_LAP_MINUS    = {18, 130, 40, 34, "-"};
-static const Button BTN_LAP_PLUS     = {220, 130, 40, 34, "+"};
-static const Button BTN_START        = {40, 190, 200, 44, "START RUN"};
+static const Button BTN_DRIVER_MINUS = {UI_STEP_MINUS_X, UI_DRIVER_Y + UI_STEP_Y_OFFSET, UI_STEP_BTN, UI_STEP_BTN, "-"};
+static const Button BTN_DRIVER_PLUS  = {UI_STEP_PLUS_X, UI_DRIVER_Y + UI_STEP_Y_OFFSET, UI_STEP_BTN, UI_STEP_BTN, "+"};
+static const Button BTN_LAP_MINUS    = {UI_STEP_MINUS_X, UI_LAPS_Y + UI_STEP_Y_OFFSET, UI_STEP_BTN, UI_STEP_BTN, "-"};
+static const Button BTN_LAP_PLUS     = {UI_STEP_PLUS_X, UI_LAPS_Y + UI_STEP_Y_OFFSET, UI_STEP_BTN, UI_STEP_BTN, "+"};
+static const Button BTN_START        = {UI_LEFT_X, UI_START_Y, UI_LEFT_COL_W, UI_START_H, "START RUN"};
 
 // Buttons (armed)
-static const Button BTN_CANCEL       = {70, 300, 140, 40, "CANCEL"};
+static const Button BTN_CANCEL       = {UI_CENTER_BUTTON_X, LOGICAL_H - UI_MARGIN - UI_BUTTON_H, UI_CENTER_BUTTON_W, UI_BUTTON_H, "CANCEL"};
 
 // Buttons (finished)
-static const Button BTN_VIEW_STATS   = {20, 320, 110, 40, "STATS"};
-static const Button BTN_DONE         = {150, 320, 110, 40, "DONE"};
+static const Button BTN_VIEW_STATS   = {UI_BUTTON_PAIR_X, UI_BUTTON_PAIR_Y, UI_BUTTON_PAIR_W, UI_BUTTON_H, "STATS"};
+static const Button BTN_DONE         = {UI_BUTTON_PAIR_X + UI_BUTTON_PAIR_W + UI_BUTTON_PAIR_GAP, UI_BUTTON_PAIR_Y, UI_BUTTON_PAIR_W, UI_BUTTON_H, "DONE"};
 
 // Buttons (stats)
-static const Button BTN_BACK         = {80, 360, 120, 40, "BACK"};
+static const Button BTN_BACK         = {UI_CENTER_BUTTON_X, LOGICAL_H - UI_MARGIN - UI_BUTTON_H, UI_CENTER_BUTTON_W, UI_BUTTON_H, "BACK"};
 
 static void DrawSplash(const char* line2) {
   Paint_SelectImage((UBYTE*)gFrame);
@@ -211,36 +277,41 @@ static void DrawIdleScreen() {
   Paint_SelectImage((UBYTE*)gFrame);
   Paint_Clear(BLACK);
 
-  Paint_DrawString_EN(10, 10, "Time Attack", &Font20, BLACK, WHITE);
+  DrawHeader("Time Attack");
 
   char line[48];
-  snprintf(line, sizeof(line), "Driver: %u", (unsigned)gSelectedDriver);
-  Paint_DrawString_EN(80, 74, line, &Font16, BLACK, WHITE);
+  Paint_DrawString_EN(UI_LEFT_X, UI_DRIVER_Y, "Driver", &Font16, WHITE, BLACK);
+  snprintf(line, sizeof(line), "%u", (unsigned)gSelectedDriver);
+  DrawValueBox(UI_LEFT_X, UI_DRIVER_Y + 26, 110, 36, line);
 
-  snprintf(line, sizeof(line), "Laps: %u", (unsigned)gSelectedLaps);
-  Paint_DrawString_EN(100, 134, line, &Font16, BLACK, WHITE);
+  Paint_DrawString_EN(UI_LEFT_X, UI_LAPS_Y, "Laps", &Font16, WHITE, BLACK);
+  snprintf(line, sizeof(line), "%u", (unsigned)gSelectedLaps);
+  DrawValueBox(UI_LEFT_X, UI_LAPS_Y + 26, 110, 36, line);
 
-  DrawButton(BTN_DRIVER_MINUS);
-  DrawButton(BTN_DRIVER_PLUS);
-  DrawButton(BTN_LAP_MINUS);
-  DrawButton(BTN_LAP_PLUS);
+  DrawButton(BTN_DRIVER_MINUS, &Font24, WHITE, BLUE);
+  DrawButton(BTN_DRIVER_PLUS, &Font24, WHITE, BLUE);
+  DrawButton(BTN_LAP_MINUS, &Font24, WHITE, BLUE);
+  DrawButton(BTN_LAP_PLUS, &Font24, WHITE, BLUE);
 
-  DrawButton(BTN_START, WHITE, GREEN);
+  DrawButton(BTN_START, &Font20, BLACK, GREEN);
 
   RunStats &run = gDriverRuns[gSelectedDriver - 1];
-  Paint_DrawString_EN(10, 250, "Last Run", &Font16, BLACK, YELLOW);
+  Paint_DrawString_EN(UI_RIGHT_X, UI_SECTION_Y, "Last Run", &Font16, YELLOW, BLACK);
 
   char timeBuf[24];
+  uint16_t infoY = UI_SECTION_Y + 22;
   if (run.valid) {
     FormatTime(timeBuf, sizeof(timeBuf), run.totalMs);
     snprintf(line, sizeof(line), "Total: %s", timeBuf);
-    Paint_DrawString_EN(10, 275, line, &Font16, BLACK, WHITE);
+    Paint_DrawString_EN(UI_RIGHT_X, infoY, line, &Font16, WHITE, BLACK);
+    infoY += 22;
 
     FormatTime(timeBuf, sizeof(timeBuf), run.bestMs);
     snprintf(line, sizeof(line), "Best:  %s", timeBuf);
-    Paint_DrawString_EN(10, 295, line, &Font16, BLACK, WHITE);
+    Paint_DrawString_EN(UI_RIGHT_X, infoY, line, &Font16, WHITE, BLACK);
+    infoY += 22;
   } else {
-    Paint_DrawString_EN(10, 275, "No run recorded", &Font16, BLACK, WHITE);
+    Paint_DrawString_EN(UI_RIGHT_X, infoY, "No run recorded", &Font16, WHITE, BLACK);
   }
 
   AMOLED_1IN64_Display(gFrame);
@@ -251,16 +322,18 @@ static void DrawArmedScreen() {
   Paint_Clear(BLACK);
 
   char line[48];
-  snprintf(line, sizeof(line), "Driver: %u", (unsigned)gSelectedDriver);
-  Paint_DrawString_EN(10, 20, line, &Font20, BLACK, WHITE);
+  DrawHeader("Ready to Start");
+
+  snprintf(line, sizeof(line), "Driver %u", (unsigned)gSelectedDriver);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y, line, &Font16, WHITE, BLACK);
 
   snprintf(line, sizeof(line), "Target Laps: %u", (unsigned)gSelectedLaps);
-  Paint_DrawString_EN(10, 50, line, &Font16, BLACK, WHITE);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 24, line, &Font16, WHITE, BLACK);
 
-  Paint_DrawString_EN(10, 120, "READY", &Font24, BLACK, GREEN);
-  Paint_DrawString_EN(10, 160, "Cross start line", &Font16, BLACK, WHITE);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 70, "READY", &Font24, GREEN, BLACK);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 104, "Cross start line", &Font16, WHITE, BLACK);
 
-  DrawButton(BTN_CANCEL, WHITE, RED);
+  DrawButton(BTN_CANCEL, &Font20, WHITE, RED);
 
   AMOLED_1IN64_Display(gFrame);
 }
@@ -270,33 +343,41 @@ static void DrawRunningScreen() {
   Paint_Clear(BLACK);
 
   char line[64];
-  snprintf(line, sizeof(line), "Driver: %u", (unsigned)gSelectedDriver);
-  Paint_DrawString_EN(10, 10, line, &Font16, BLACK, WHITE);
+  DrawHeader("Running");
+
+  snprintf(line, sizeof(line), "Driver %u", (unsigned)gSelectedDriver);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y, line, &Font16, WHITE, BLACK);
 
   uint8_t lapDisplay = (gLapCount < gSelectedLaps) ? (gLapCount + 1) : gSelectedLaps;
-  snprintf(line, sizeof(line), "Lap: %u / %u", (unsigned)lapDisplay, (unsigned)gSelectedLaps);
-  Paint_DrawString_EN(10, 40, line, &Font20, BLACK, WHITE);
+  snprintf(line, sizeof(line), "Lap %u / %u", (unsigned)lapDisplay, (unsigned)gSelectedLaps);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 22, line, &Font16, WHITE, BLACK);
 
+  uint32_t now = millis();
+  uint32_t currentLapMs = (gLapCount == 0) ? (now - gStartMs) : (now - gLastLapStartMs);
   char timeBuf[24];
+  FormatTime(timeBuf, sizeof(timeBuf), currentLapMs);
+  DrawCenteredText(UI_MARGIN, UI_SECTION_Y + 50, LOGICAL_W - (UI_MARGIN * 2), 40, timeBuf, &Font24, WHITE, BLACK);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 96, "Current Lap", &Font16, WHITE, BLACK);
+
   FormatTimeMaybe(timeBuf, sizeof(timeBuf), gLapCount > 0, gLastLapMs);
   snprintf(line, sizeof(line), "Last: %s", timeBuf);
-  Paint_DrawString_EN(10, 90, line, &Font16, BLACK, WHITE);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 126, line, &Font16, WHITE, BLACK);
 
   FormatTimeMaybe(timeBuf, sizeof(timeBuf), gBestLapMs > 0, gBestLapMs);
   snprintf(line, sizeof(line), "Best: %s", timeBuf);
-  Paint_DrawString_EN(10, 115, line, &Font16, BLACK, WHITE);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 148, line, &Font16, WHITE, BLACK);
 
   if (gLapCount > 0 && gBestLapMs > 0) {
     long delta = (long)gDeltaMs;
     snprintf(line, sizeof(line), "Delta: %c%lu ms", (delta >= 0) ? '+' : '-', (unsigned long)labs(delta));
-    Paint_DrawString_EN(10, 140, line, &Font16, BLACK, (delta <= 0) ? GREEN : RED);
+    Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 170, line, &Font16, (delta <= 0) ? GREEN : RED, BLACK);
   }
 
   FormatTime(timeBuf, sizeof(timeBuf), gSessionMs);
   snprintf(line, sizeof(line), "Session: %s", timeBuf);
-  Paint_DrawString_EN(10, 180, line, &Font20, BLACK, WHITE);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 196, line, &Font16, WHITE, BLACK);
 
-  Paint_DrawString_EN(10, 220, "IR OK", &Font16, BLACK, GREEN);
+  Paint_DrawString_EN(UI_MARGIN, LOGICAL_H - UI_MARGIN - 18, "IR OK", &Font16, GREEN, BLACK);
 
   AMOLED_1IN64_Display(gFrame);
 }
@@ -306,29 +387,31 @@ static void DrawFinishedScreen() {
   Paint_Clear(BLACK);
 
   char line[64];
-  snprintf(line, sizeof(line), "Driver: %u", (unsigned)gSelectedDriver);
-  Paint_DrawString_EN(10, 10, line, &Font16, BLACK, WHITE);
-
-  snprintf(line, sizeof(line), "Laps: %u", (unsigned)gSelectedLaps);
-  Paint_DrawString_EN(10, 32, line, &Font16, BLACK, WHITE);
+  DrawHeader("Run Complete");
 
   RunStats &run = gDriverRuns[gSelectedDriver - 1];
   char timeBuf[24];
 
+  snprintf(line, sizeof(line), "Driver %u", (unsigned)gSelectedDriver);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y, line, &Font16, WHITE, BLACK);
+
+  snprintf(line, sizeof(line), "Laps %u", (unsigned)gSelectedLaps);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 22, line, &Font16, WHITE, BLACK);
+
   FormatTimeMaybe(timeBuf, sizeof(timeBuf), run.valid, run.totalMs);
-  snprintf(line, sizeof(line), "Total: %s", timeBuf);
-  Paint_DrawString_EN(10, 70, line, &Font20, BLACK, WHITE);
+  DrawCenteredText(UI_MARGIN, UI_SECTION_Y + 52, LOGICAL_W - (UI_MARGIN * 2), 40, timeBuf, &Font24, WHITE, BLACK);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 96, "Total Time", &Font16, WHITE, BLACK);
 
   FormatTimeMaybe(timeBuf, sizeof(timeBuf), run.valid, run.bestMs);
   snprintf(line, sizeof(line), "Best:  %s", timeBuf);
-  Paint_DrawString_EN(10, 105, line, &Font16, BLACK, WHITE);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 122, line, &Font16, WHITE, BLACK);
 
   FormatTimeMaybe(timeBuf, sizeof(timeBuf), run.valid, run.avgMs);
   snprintf(line, sizeof(line), "Avg:   %s", timeBuf);
-  Paint_DrawString_EN(10, 130, line, &Font16, BLACK, WHITE);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 144, line, &Font16, WHITE, BLACK);
 
-  DrawButton(BTN_VIEW_STATS, WHITE, BLUE);
-  DrawButton(BTN_DONE, WHITE, GREEN);
+  DrawButton(BTN_VIEW_STATS, &Font20, WHITE, BLUE);
+  DrawButton(BTN_DONE, &Font20, BLACK, GREEN);
 
   AMOLED_1IN64_Display(gFrame);
 }
@@ -339,23 +422,22 @@ static void DrawStatsScreen() {
 
   char line[64];
   RunStats &selected = gDriverRuns[gSelectedDriver - 1];
-  snprintf(line, sizeof(line), "Driver %u - Last Run", (unsigned)gSelectedDriver);
-  Paint_DrawString_EN(10, 10, line, &Font16, BLACK, WHITE);
+  DrawHeader("Run Stats");
 
   char timeBuf[24];
   FormatTimeMaybe(timeBuf, sizeof(timeBuf), selected.valid, selected.totalMs);
   snprintf(line, sizeof(line), "Total: %s", timeBuf);
-  Paint_DrawString_EN(10, 40, line, &Font16, BLACK, WHITE);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y, line, &Font16, WHITE, BLACK);
 
   FormatTimeMaybe(timeBuf, sizeof(timeBuf), selected.valid, selected.bestMs);
   snprintf(line, sizeof(line), "Best:  %s", timeBuf);
-  Paint_DrawString_EN(10, 60, line, &Font16, BLACK, WHITE);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 22, line, &Font16, WHITE, BLACK);
 
   FormatTimeMaybe(timeBuf, sizeof(timeBuf), selected.valid, selected.avgMs);
   snprintf(line, sizeof(line), "Avg:   %s", timeBuf);
-  Paint_DrawString_EN(10, 80, line, &Font16, BLACK, WHITE);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 44, line, &Font16, WHITE, BLACK);
 
-  Paint_DrawString_EN(10, 130, "Previous Driver", &Font16, BLACK, YELLOW);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 80, "Previous Driver", &Font16, YELLOW, BLACK);
 
   int compareDriver = gLastCompletedDriver;
   if (compareDriver == (int)gSelectedDriver) {
@@ -365,15 +447,15 @@ static void DrawStatsScreen() {
   if (compareDriver > 0) {
     RunStats &other = gDriverRuns[compareDriver - 1];
     snprintf(line, sizeof(line), "Driver %u", (unsigned)compareDriver);
-    Paint_DrawString_EN(10, 150, line, &Font16, BLACK, WHITE);
+    Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 102, line, &Font16, WHITE, BLACK);
     FormatTimeMaybe(timeBuf, sizeof(timeBuf), other.valid, other.bestMs);
     snprintf(line, sizeof(line), "Best: %s", timeBuf);
-    Paint_DrawString_EN(10, 170, line, &Font16, BLACK, WHITE);
+    Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 124, line, &Font16, WHITE, BLACK);
   } else {
-    Paint_DrawString_EN(10, 150, "No previous run", &Font16, BLACK, WHITE);
+    Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 102, "No previous run", &Font16, WHITE, BLACK);
   }
 
-  DrawButton(BTN_BACK, WHITE, BLUE);
+  DrawButton(BTN_BACK, &Font20, WHITE, BLUE);
 
   AMOLED_1IN64_Display(gFrame);
 }
@@ -465,7 +547,7 @@ void setup() {
     while (true) delay(1000);
   }
 
-  Paint_NewImage((UBYTE*)gFrame, DISP_W, DISP_H, 0, WHITE);
+  Paint_NewImage((UBYTE*)gFrame, DISP_W, DISP_H, ROTATE_0, WHITE);
   Paint_SetScale(65);
   Paint_SetRotate(ROTATE_0);
 
@@ -497,6 +579,10 @@ void setup() {
   DrawSplash(id == 0x03 ? "Touch OK. Ready" : "Touch ID not 0x03");
   delay(300);
 
+  Paint_NewImage((UBYTE*)gFrame, DISP_W, DISP_H, UI_ROTATION, WHITE);
+  Paint_SetScale(65);
+  Paint_SetRotate(UI_ROTATION);
+
   gState = UI_IDLE;
   RenderState();
 }
@@ -510,6 +596,7 @@ void loop() {
 
   // last known coords
   static uint16_t lastRawX = 0, lastRawY = 0;
+  static uint16_t lastNormX = 0, lastNormY = 0;
   static uint16_t lastX = 0, lastY = 0;
 
   // beep debounce
@@ -527,7 +614,8 @@ void loop() {
     lastTouchSampleMs = now;
     lastRawX = rawX;
     lastRawY = rawY;
-    NormalizeTouch(rawX, rawY, lastX, lastY);
+    NormalizeTouch(rawX, rawY, lastNormX, lastNormY);
+    RotateTouch(lastNormX, lastNormY, lastX, lastY);
   }
 
   bool downNow = (now - lastTouchSampleMs) <= TOUCH_HOLD_MS;
@@ -586,11 +674,19 @@ void loop() {
   }
 
   if (justPressed) {
-    Serial.printf("TOUCH DOWN raw(%u,%u) norm(%u,%u)\n",
-                  (unsigned)lastRawX, (unsigned)lastRawY, (unsigned)lastX, (unsigned)lastY);
+#if TOUCH_DEBUG
+    Serial.printf("TOUCH DOWN raw(%u,%u) norm(%u,%u) rot(%u,%u)\n",
+                  (unsigned)lastRawX, (unsigned)lastRawY,
+                  (unsigned)lastNormX, (unsigned)lastNormY,
+                  (unsigned)lastX, (unsigned)lastY);
+#else
+    Serial.printf("TOUCH DOWN rot(%u,%u)\n", (unsigned)lastX, (unsigned)lastY);
+#endif
   }
   if (justReleased) {
+#if TOUCH_DEBUG
     Serial.println("TOUCH UP");
+#endif
   }
 
   if (justPressed) {
