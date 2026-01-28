@@ -8,7 +8,7 @@ static lv_disp_draw_buf_t s_draw_buf;
 
 static constexpr uint32_t kBufLines = 120;
 static constexpr uint32_t kPostFlushDelayMs = 1;
-static constexpr bool kSwapBytesInFlush = true;
+static constexpr bool kSwapBytesInFlush = false;
 
 static_assert(sizeof(lv_color_t) == 2, "LVGL must be configured for RGB565");
 
