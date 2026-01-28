@@ -116,24 +116,22 @@ LVGL flush →
 
 ### Known-Good Runtime Parameters
 
-| Parameter | Value |
-| --- | --- |
-| BUF_LINES | 120 |
-| POST_FLUSH_DELAY_MS | 1 |
-| Animation duration | ≥ 1200 ms |
-| Screen invalidation | Yes |
-| LVGL refresh | 10 ms |
+- `BUF_LINES`: 120
+- `POST_FLUSH_DELAY_MS`: 1
+- Animation duration: ≥ 1200 ms
+- Screen invalidation: Yes
+- LVGL refresh: 10 ms
 
 ### Do / Don’t Rules
 
-#### DO
+**DO**
 - Use packed DMA flush
 - Swap bytes in flush callback
 - Add pacing delay after DMA
 - Invalidate screen at fixed cadence if tearing appears
 - Treat this setup as a baseline
 
-#### DON’T
+**DON’T**
 - Call `AMOLED_1IN64_DisplayWindows()` with LVGL buffers
 - Assume LVGL buffers are full-screen
 - Remove the delay without re-testing tearing
@@ -142,7 +140,7 @@ LVGL flush →
 ## Reference Implementation
 See:
 
-`firmware/examples/lvgl_amoled_1in64/`
+`firmware/demos/lvgl_amoled_1in64/`
 
 This example:
 
