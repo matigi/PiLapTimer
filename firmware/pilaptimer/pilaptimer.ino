@@ -646,6 +646,8 @@ void setup() {
   lv_port_disp_init();
   lv_port_indev_init();
   lv_time_attack_ui_init(HandleStartStop, HandleReset);
+  lv_obj_invalidate(lv_scr_act());
+  lv_timer_handler();
 #endif
 
   gState = UI_IDLE;
