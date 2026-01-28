@@ -1,13 +1,11 @@
 ## Project Status
 
-**Current Phase:** Phase 2 – Competitive Time Attack UX  
-**Current Milestone:** hw-m05 (Known-Good Baseline + Session UX)
+**Current Phase:** Recovery – Touch + Beeper Baseline  
+**Current Milestone:** hw-m05-touch-beeper-ok
 
-Milestones 1–3 (Display bring-up, IR detection, basic lap timing) are complete.
-Current development is focused on:
-- Touch-driven session control
-- Multi-driver time attack workflows
-- Competitive lap timing UX
+Milestones 1–4 (Display bring-up, IR detection, basic lap timing) were complete,
+but the current focus is restoring a reliable touch + beeper baseline before
+reintroducing lap timing and session UX.
 
 For detailed milestone tracking, see:
 docs/PROJECT_STATUS.md
@@ -51,4 +49,3 @@ Rules:
 - Files in this directory are treated as read-only assets
 - Do not modify without updating the source image
 - Firmware should reference these assets but not generate or alter them
-
