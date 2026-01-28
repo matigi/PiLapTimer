@@ -35,6 +35,15 @@ static const uint16_t UI_REFRESH_MS        = 250;
 
 static UWORD* gFrame = nullptr;
 
+// ----------------- UI helpers -----------------
+struct Button {
+  uint16_t x;
+  uint16_t y;
+  uint16_t w;
+  uint16_t h;
+  const char* label;
+};
+
 // ----------------- Beep (no tone) -----------------
 static void BeepNow(uint16_t freq = 2600, uint16_t ms = 25) {
   analogWriteFreq(freq);
@@ -100,15 +109,6 @@ void IRAM_ATTR IrIsr() {
   gIrSeenMs = (uint32_t)millis();
   gIrSeen = true;
 }
-
-// ----------------- UI helpers -----------------
-struct Button {
-  uint16_t x;
-  uint16_t y;
-  uint16_t w;
-  uint16_t h;
-  const char* label;
-};
 
 static bool HitTest(const Button &btn, uint16_t x, uint16_t y) {
   return (x >= btn.x && x < (btn.x + btn.w) && y >= btn.y && y < (btn.y + btn.h));
