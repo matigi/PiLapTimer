@@ -349,33 +349,33 @@ static void DrawRunningScreen() {
   Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y, line, &Font16, WHITE, BLACK);
 
   uint8_t lapDisplay = (gLapCount < gSelectedLaps) ? (gLapCount + 1) : gSelectedLaps;
-  snprintf(line, sizeof(line), "Lap %u / %u", (unsigned)lapDisplay, (unsigned)gSelectedLaps);
-  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 22, line, &Font16, WHITE, BLACK);
+  snprintf(line, sizeof(line), "LAP %u / %u", (unsigned)lapDisplay, (unsigned)gSelectedLaps);
+  DrawCenteredText(UI_MARGIN, UI_SECTION_Y + 20, LOGICAL_W - (UI_MARGIN * 2), 34, line, &Font24, YELLOW, BLACK);
 
   uint32_t now = millis();
   uint32_t currentLapMs = (gLapCount == 0) ? (now - gStartMs) : (now - gLastLapStartMs);
   char timeBuf[24];
   FormatTime(timeBuf, sizeof(timeBuf), currentLapMs);
-  DrawCenteredText(UI_MARGIN, UI_SECTION_Y + 50, LOGICAL_W - (UI_MARGIN * 2), 40, timeBuf, &Font24, WHITE, BLACK);
-  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 96, "Current Lap", &Font16, WHITE, BLACK);
+  DrawValueBox(UI_MARGIN, UI_SECTION_Y + 56, LOGICAL_W - (UI_MARGIN * 2), 46, timeBuf);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 108, "Current Lap", &Font16, WHITE, BLACK);
 
   FormatTimeMaybe(timeBuf, sizeof(timeBuf), gLapCount > 0, gLastLapMs);
   snprintf(line, sizeof(line), "Last: %s", timeBuf);
-  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 126, line, &Font16, WHITE, BLACK);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 132, line, &Font16, WHITE, BLACK);
 
   FormatTimeMaybe(timeBuf, sizeof(timeBuf), gBestLapMs > 0, gBestLapMs);
   snprintf(line, sizeof(line), "Best: %s", timeBuf);
-  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 148, line, &Font16, WHITE, BLACK);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 154, line, &Font16, WHITE, BLACK);
 
   if (gLapCount > 0 && gBestLapMs > 0) {
     long delta = (long)gDeltaMs;
     snprintf(line, sizeof(line), "Delta: %c%lu ms", (delta >= 0) ? '+' : '-', (unsigned long)labs(delta));
-    Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 170, line, &Font16, (delta <= 0) ? GREEN : RED, BLACK);
+    Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 176, line, &Font16, (delta <= 0) ? GREEN : RED, BLACK);
   }
 
   FormatTime(timeBuf, sizeof(timeBuf), gSessionMs);
   snprintf(line, sizeof(line), "Session: %s", timeBuf);
-  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 196, line, &Font16, WHITE, BLACK);
+  Paint_DrawString_EN(UI_MARGIN, UI_SECTION_Y + 202, line, &Font16, WHITE, BLACK);
 
   Paint_DrawString_EN(UI_MARGIN, LOGICAL_H - UI_MARGIN - 18, "IR OK", &Font16, GREEN, BLACK);
 
