@@ -1,7 +1,7 @@
 #include "lv_port_disp.h"
 
-#include "AMOLED_1in64.h"
 #include "DEV_Config.h"
+#include "AMOLED_1in64.h"
 #include "qspi_pio.h"
 
 static lv_disp_draw_buf_t s_draw_buf;
