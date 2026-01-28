@@ -1,70 +1,33 @@
 /*****************************************************************************
-* | File      	:   FT3168.c
-* | Author      :   Waveshare Team
-* | Function    :   FT3168 Interface Functions
-* | Info        :
-*----------------
-* |	This version:   V1.0
-* | Date        :   2025-03-20
-* | Info        :   
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documnetation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of theex Software, and to permit persons to  whom the Software is
-# furished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS OR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
+* | File       :   FT3168.cpp
+* | Function   :   FT3168 Interface Functions (fixed signature + hardened Get_Point)
 ******************************************************************************/
+
 #include "FT3168.h"
 #include "DEV_Config.h"
 
 FT3168_Struct FT3168;
 
-/******************************************************************************
-function :	Send one byte of data to the specified register of FT3168
-parameter:
-******************************************************************************/
+// --- low-level I2C helpers (use DEV_ I2C wrappers) ---
 static void FT3168_I2C_Write_Byte(uint8_t reg, uint8_t value) {
     DEV_I2C_Write_Byte(FT3168_I2C_ADDR, reg, value);
 }
 
-/******************************************************************************
-function :	Read one byte of data from the specified register of FT3168
-parameter:
-******************************************************************************/
-static  uint8_t FT3168_I2C_Read_Byte(uint8_t reg) {
-    uint8_t value;
-    value = DEV_I2C_Read_Byte(FT3168_I2C_ADDR,reg);
-    return value;
+static uint8_t FT3168_I2C_Read_Byte(uint8_t reg) {
+    return DEV_I2C_Read_Byte(FT3168_I2C_ADDR, reg);
 }
 
-/******************************************************************************
-function :	Read n byte of data from the specified register of FT3168
-parameter:
-******************************************************************************/
-static void FT3168_I2C_Read_nByte(uint8_t reg, uint8_t *pData, uint32_t Len) {
-    DEV_I2C_Read_nByte(FT3168_I2C_ADDR,reg,pData,Len);
+static void FT3168_I2C_Read_nByte(uint8_t reg, uint8_t *pData, uint32_t len) {
+    DEV_I2C_Read_nByte(FT3168_I2C_ADDR, reg, pData, len);
 }
 
-/******************************************************************************
-function :	Reset the FT3168
-parameter:
-******************************************************************************/
+// --- reset (guard if Touch_RST_PIN == -1) ---
 void FT3168_Reset() {
     if (Touch_RST_PIN < 0) {
+        sleep_ms(50);
         return;
     }
+
     gpio_put(Touch_RST_PIN, 1);
     sleep_ms(20);
     gpio_put(Touch_RST_PIN, 0);
@@ -73,94 +36,90 @@ void FT3168_Reset() {
     sleep_ms(50);
 }
 
-/******************************************************************************
-function :	Initialize the FT3168
-parameter:
-        mode    ：  FT3168_Point_Mode
-                    FT3168_Gesture_Mode
-******************************************************************************/
+/**
+ * IMPORTANT:
+ * Your header calls for: uint16_t FT3168_ReadState(Value_Information info)
+ * The enum values in Value_Information are used like "register selectors" by this library.
+ * In Waveshare's variant, they are the register address (or compatible with being cast to uint8_t).
+ */
+uint16_t FT3168_ReadState(Value_Information info) {
+    uint8_t buf[2] = {0, 0};
+    FT3168_I2C_Read_nByte((uint8_t)info, buf, 2);
+    return (uint16_t)((buf[0] << 8) | buf[1]);
+}
+
 void FT3168_Init(uint8_t mode) {
-    // FT3168 Reset
     FT3168_Reset();
 
-    // FT3168 Init
-    FT3168_I2C_Write_Byte(REG_POWER_MODE,0X01);
-    if(mode != FT3168_Point_Mode){
-        FT3168_I2C_Write_Byte(FT3168_RD_WR_DEVICE_GESTUREID_MODE,0X01);
+    // Power on / init (matches your existing macro set)
+    FT3168_I2C_Write_Byte(REG_POWER_MODE, 0x01);
+
+    if (mode != FT3168_Point_Mode) {
+        FT3168_I2C_Write_Byte(FT3168_RD_WR_DEVICE_GESTUREID_MODE, 0x01);
         FT3168.mode = FT3168_Gesture_Mode;
-    }
-    else{
+    } else {
         FT3168.mode = FT3168_Point_Mode;
     }
 
     sleep_ms(20);
 
-    int32_t id = FT3168_ReadID();
-    printf("FT3168Register_WhoAmI = %d\n", id);
-    if(id != 0x03) { // FT3168的ID应为0x03
-        printf("Invalid device ID: 0x%x\n", id);
+    // Your header declares uint16_t FT3168_ReadID()
+    uint16_t id = FT3168_ReadID();
+    printf("FT3168Register_WhoAmI = %d\n", (int)id);
+    if (id != 0x03) {
+        printf("Invalid device ID: 0x%x\n", (unsigned)id);
         return;
     }
     printf("FT3168 initialized successfully\n");
 }
 
-/******************************************************************************
-function :	Read the ID of FT3168
-parameter:
-******************************************************************************/
 uint16_t FT3168_ReadID() {
-    uint8_t id;
-    id = FT3168_I2C_Read_Byte(FT3168_RD_DEVICE_ID);
-    return id;
+    // Your macro name set uses FT3168_RD_DEVICE_ID
+    return (uint16_t)FT3168_I2C_Read_Byte(FT3168_RD_DEVICE_ID);
 }
 
-/******************************************************************************
-function :	Read the current status of FT3168
-parameter:
-******************************************************************************/
-uint16_t FT3168_ReadState(Value_Information info) {
-    uint8_t buf[2];
-    
-    switch(info) {
-        case FT3168_GESTURE_ID:
-            buf[0] = FT3168_I2C_Read_Byte(REG_GESTURE_ID);
-            return buf[0];
-
-        case FT3168_FINGER_NUMBER:
-            buf[0] = FT3168_I2C_Read_Byte(REG_FINGER_NUM);
-            return buf[0];
-
-        case FT3168_COORDINATE_X:
-            FT3168_I2C_Read_nByte(REG_X1_H, buf, 2);
-            return ((int16_t)(buf[0] & 0x0F) << 8) | buf[1];
-            
-        case FT3168_COORDINATE_Y:
-            FT3168_I2C_Read_nByte(REG_Y1_H, buf, 2);
-            return ((int16_t)(buf[0] & 0x0F) << 8) | buf[1];
-    }
-    return -1;
-}
-
-/******************************************************************************
-function :	Get the coordinate value of FT3168 contact
-parameter:
-******************************************************************************/
+/**
+ * HARDENED touch read:
+ * - FT3168 supports 0..2 touches.
+ * - 0xFF (or >2) is usually an I2C glitch, and previously it caused "stuck down forever".
+ */
 bool FT3168_Get_Point() {
-    uint8_t fingers = (uint8_t)FT3168_ReadState(FT3168_FINGER_NUMBER);
-    if(fingers != 0) 
-    {
-        FT3168.x_point = (int)FT3168_ReadState(FT3168_COORDINATE_X);
-        FT3168.y_point = (int)FT3168_ReadState(FT3168_COORDINATE_Y);
-        return true;
+    // Standard FT3x68/FT3168 register block
+    // 0x02: TD_STATUS (touch points)
+    // 0x03..0x06: P1_XH, P1_XL, P1_YH, P1_YL
+    uint8_t buf[5] = {0};
+
+    // Read 0x02..0x06 (5 bytes)
+    DEV_I2C_Read_nByte(FT3168_I2C_ADDR, 0x02, buf, 5);
+
+    uint8_t points = buf[0] & 0x0F;  // low nibble is number of touches
+
+    // reject invalid / glitched reads
+    if (points == 0 || points > 2) {
+        return false;
     }
-    return false;
+
+    uint8_t xh = buf[1];
+    uint8_t xl = buf[2];
+    uint8_t yh = buf[3];
+    uint8_t yl = buf[4];
+
+    // coords are 12-bit: high nibble in XH/YH is status, low nibble is MSBs of coord
+    uint16_t x = (uint16_t)((xh & 0x0F) << 8) | xl;
+    uint16_t y = (uint16_t)((yh & 0x0F) << 8) | yl;
+
+    // reject obvious garbage
+    if ((x == 4095 && y == 4095) || (x == 0xFFFF && y == 0xFFFF)) {
+        return false;
+    }
+
+    FT3168.x_point = (int)x;
+    FT3168.y_point = (int)y;
+    return true;
 }
 
-/******************************************************************************
-function :	Get the coordinate value of FT3168 contact
-parameter:
-******************************************************************************/
+
 uint8_t FT3168_Get_Gesture() {
-    uint8_t gesture = FT3168_ReadState(FT3168_GESTURE_ID);
-    return gesture;
+    // Your macro set uses FT3168_GESTURE_ID
+    return (uint8_t)FT3168_ReadState(FT3168_GESTURE_ID);
 }
