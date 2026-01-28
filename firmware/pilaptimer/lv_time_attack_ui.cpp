@@ -529,8 +529,6 @@ void lv_time_attack_ui_update(const UiSnapshot &snapshot) {
   }
   lastLapCount = snapshot.lapCount;
 
-  char line[24];
-  char timeBuf[24];
   for (uint8_t i = 0; i < kMaxDrivers; ++i) {
     uint8_t row = i + 1;
     snprintf(line, sizeof(line), "%u", (unsigned)(i + 1));
