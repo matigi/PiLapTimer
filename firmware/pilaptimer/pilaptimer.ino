@@ -557,6 +557,11 @@ static void HandleStartStop() {
     return;
   }
 
+  if (gState == UI_RUNNING) {
+    FinishRun(now);
+    return;
+  }
+
   if (gState == UI_ARMED || gState == UI_FINISHED || gState == UI_STATS) {
     gState = UI_IDLE;
     RenderState();
