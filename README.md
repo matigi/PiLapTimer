@@ -14,6 +14,18 @@ docs/PROJECT_STATUS.md
 
 - docs/UI_FLOW_PHASE2.md – Phase 2 touchscreen UI flow and transitions
 
+- ## Touch + Buzzer Stable Baseline
+
+Tag: `pilaptimer-touch-stable-v1`
+
+- FT3168 touch reading uses raw register block (0x02–0x06)
+- Robust DOWN/UP detection via time-windowing
+- Buzzer uses GPIO/PWM-safe method (no Arduino `tone()`)
+- Multi-touch works
+- Touch coordinates accurate
+
+This tag represents the last known-good hardware integration baseline.
+
 ## Specification Hierarchy
 
 This project has multiple functional specifications by phase.
