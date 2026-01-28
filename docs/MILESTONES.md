@@ -158,7 +158,7 @@ Recover a stable touch + buzzer baseline after refactors and troubleshooting.
 ---
 
 ## hw-m06 – Driver Selection + Fixed-Lap Competitive Runs
-**Status: IN PROGRESS**
+**Status: COMPLETE**
 
 ### Objective
 Add Phase 2 driver selection, fixed-lap session flow, and finished results display.
@@ -169,6 +169,7 @@ Add Phase 2 driver selection, fixed-lap session flow, and finished results displ
 - S2 Armed → S3 Running → S4 Finished transitions
 - Lap beep on each valid lap
 - Distinct completion beep on final lap
+- Rotated landscape UI (456x280 logical) with readable running lap/time display
 - Display total, best, and average on results screen
 - In-memory storage of last run per driver (no persistence)
 
