@@ -8,6 +8,20 @@
 #include "FT3168.h"
 #include "GUI_Paint.h"
 #include "fonts.h"
+#include "ui_state.h"
+
+#ifndef USE_LVGL_UI
+#define USE_LVGL_UI 1
+#endif
+
+#if USE_LVGL_UI
+#define LV_CONF_INCLUDE_SIMPLE
+#include <lvgl.h>
+
+#include "lv_port_disp.h"
+#include "lv_port_indev.h"
+#include "lv_time_attack_ui.h"
+#endif
 
 #ifndef WHITE
 #define WHITE 0xFFFF
@@ -40,6 +54,7 @@ static const uint16_t POLL_MS              = 10;
 static const uint16_t TOUCH_HOLD_MS        = 120;
 static const uint16_t BEEP_DEBOUNCE_MS     = 250;
 static const uint16_t UI_REFRESH_MS        = 250;
+static const uint16_t LVGL_UI_REFRESH_MS   = 100;
 
 static UWORD* gFrame = nullptr;
 
@@ -209,15 +224,6 @@ static void FormatTimeMaybe(char *out, size_t outSize, bool valid, uint32_t ms) 
 }
 
 // ----------------- State -----------------
-enum UiState {
-  UI_BOOT,
-  UI_IDLE,
-  UI_ARMED,
-  UI_RUNNING,
-  UI_FINISHED,
-  UI_STATS
-};
-
 static UiState gState = UI_BOOT;
 
 struct RunStats {
@@ -247,7 +253,12 @@ static int32_t gDeltaMs = 0;
 static uint32_t gSessionMs = 0;
 static uint32_t gLastUiMs = 0;
 static uint32_t gLastLapTriggerMs = 0;
+static uint32_t gLastBeepMs = 0;
 
+#if USE_LVGL_UI
+static bool gUiDirty = true;
+static uint32_t gLastLvglUiMs = 0;
+#endif
 // Buttons (idle)
 static const Button BTN_DRIVER_MINUS = {UI_STEP_MINUS_X, UI_DRIVER_Y + UI_STEP_Y_OFFSET, UI_STEP_BTN, UI_STEP_BTN, "-"};
 static const Button BTN_DRIVER_PLUS  = {UI_STEP_PLUS_X, UI_DRIVER_Y + UI_STEP_Y_OFFSET, UI_STEP_BTN, UI_STEP_BTN, "+"};
@@ -461,6 +472,9 @@ static void DrawStatsScreen() {
 }
 
 static void RenderState() {
+#if USE_LVGL_UI
+  gUiDirty = true;
+#else
   switch (gState) {
     case UI_IDLE:
       DrawIdleScreen();
@@ -480,6 +494,7 @@ static void RenderState() {
     default:
       break;
   }
+#endif
 }
 
 static void StartArmed() {
@@ -519,6 +534,43 @@ static void FinishRun(uint32_t now) {
   RenderState();
 }
 
+#if USE_LVGL_UI
+static void ResetRunState() {
+  gLapCount = 0;
+  gLastLapMs = 0;
+  gBestLapMs = 0;
+  gDeltaMs = 0;
+  gSessionMs = 0;
+  gStartMs = 0;
+  gLastLapStartMs = 0;
+  gLastLapTriggerMs = 0;
+}
+
+static void HandleStartStop() {
+  uint32_t now = millis();
+  if (gState == UI_IDLE) {
+    StartArmed();
+    if ((now - gLastBeepMs) >= BEEP_DEBOUNCE_MS) {
+      BeepNow(2400, 35);
+      gLastBeepMs = now;
+    }
+    return;
+  }
+
+  if (gState == UI_ARMED || gState == UI_FINISHED || gState == UI_STATS) {
+    gState = UI_IDLE;
+    RenderState();
+  }
+}
+
+static void HandleReset() {
+  if (gState == UI_RUNNING) return;
+  ResetRunState();
+  gState = UI_IDLE;
+  RenderState();
+}
+#endif
+
 // ----------------- Arduino -----------------
 void setup() {
   Serial.begin(115200);
@@ -540,6 +592,7 @@ void setup() {
 
   Serial.printf("Display WIDTH=%u HEIGHT=%u\n", (unsigned)AMOLED_1IN64.WIDTH, (unsigned)AMOLED_1IN64.HEIGHT);
 
+#if !USE_LVGL_UI
   UDOUBLE bytes = (UDOUBLE)DISP_W * (UDOUBLE)DISP_H * 2;
   gFrame = (UWORD*)malloc(bytes);
   if (!gFrame) {
@@ -550,6 +603,9 @@ void setup() {
   Paint_NewImage((UBYTE*)gFrame, DISP_W, DISP_H, ROTATE_0, WHITE);
   Paint_SetScale(65);
   Paint_SetRotate(ROTATE_0);
+#else
+  AMOLED_1IN64_Clear(BLACK);
+#endif
 
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
@@ -559,8 +615,10 @@ void setup() {
   delay(200);
   BeepNow();
 
+#if !USE_LVGL_UI
   DrawSplash("Booting...");
   delay(250);
+#endif
 
   Serial.println("I2C bring-up via QMI8658_init()...");
   QMI8658_init();
@@ -576,12 +634,19 @@ void setup() {
   pinMode(IR_IN_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(IR_IN_PIN), IrIsr, FALLING);
 
+#if !USE_LVGL_UI
   DrawSplash(id == 0x03 ? "Touch OK. Ready" : "Touch ID not 0x03");
   delay(300);
 
   Paint_NewImage((UBYTE*)gFrame, DISP_W, DISP_H, UI_ROTATION, WHITE);
   Paint_SetScale(65);
   Paint_SetRotate(UI_ROTATION);
+#else
+  lv_init();
+  lv_port_disp_init();
+  lv_port_indev_init();
+  lv_time_attack_ui_init(HandleStartStop, HandleReset);
+#endif
 
   gState = UI_IDLE;
   RenderState();
@@ -590,7 +655,21 @@ void setup() {
 void loop() {
   static uint32_t lastPoll = 0;
 
+#if USE_LVGL_UI
+  static uint32_t lastTick = 0;
+  uint32_t now = millis();
+  uint32_t delta = now - lastTick;
+  if (delta > 0) {
+    lv_tick_inc(delta);
+    lastTick = now;
+  }
+  lv_timer_handler();
+#else
+  uint32_t now = millis();
+#endif
+
   // Robust touch state
+#if !USE_LVGL_UI
   static bool touchDown = false;
   static uint32_t lastTouchSampleMs = 0;
 
@@ -599,14 +678,12 @@ void loop() {
   static uint16_t lastNormX = 0, lastNormY = 0;
   static uint16_t lastX = 0, lastY = 0;
 
-  // beep debounce
-  static uint32_t lastBeepMs = 0;
-
-  uint32_t now = millis();
+#endif
   if ((uint32_t)(now - lastPoll) < POLL_MS) return;
   lastPoll = now;
 
   // Try to get a sample
+#if !USE_LVGL_UI
   uint16_t rawX = 0, rawY = 0;
   bool gotSample = ReadTouchSample(rawX, rawY);
 
@@ -622,6 +699,7 @@ void loop() {
   bool justPressed = (!touchDown && downNow);
   bool justReleased = (touchDown && !downNow);
   touchDown = downNow;
+#endif
 
   // IR events
   bool irTriggered = false;
@@ -651,9 +729,9 @@ void loop() {
 
       Serial.printf("LAP %u time=%lu ms\n", (unsigned)gLapCount, (unsigned long)gLastLapMs);
 
-      if ((irMs - lastBeepMs) >= BEEP_DEBOUNCE_MS) {
+      if ((irMs - gLastBeepMs) >= BEEP_DEBOUNCE_MS) {
         BeepLap();
-        lastBeepMs = irMs;
+        gLastBeepMs = irMs;
       }
 
       if (gLapCount >= gSelectedLaps) {
@@ -667,12 +745,39 @@ void loop() {
 
   if (gState == UI_RUNNING) {
     gSessionMs = now - gStartMs;
+#if !USE_LVGL_UI
     if ((uint32_t)(now - gLastUiMs) >= UI_REFRESH_MS) {
       gLastUiMs = now;
       RenderState();
     }
+#endif
   }
 
+#if USE_LVGL_UI
+  if (gUiDirty || (uint32_t)(now - gLastLvglUiMs) >= LVGL_UI_REFRESH_MS) {
+    gLastLvglUiMs = now;
+    gUiDirty = false;
+    UiSnapshot snapshot{};
+    snapshot.state = gState;
+    snapshot.selectedDriver = gSelectedDriver;
+    snapshot.selectedLaps = gSelectedLaps;
+    snapshot.lapCount = gLapCount;
+    snapshot.sessionMs = gSessionMs;
+    snapshot.lastLapMs = gLastLapMs;
+    snapshot.bestLapMs = gBestLapMs;
+    snapshot.deltaMs = gDeltaMs;
+    if (gState == UI_RUNNING) {
+      snapshot.currentLapMs = (gLapCount == 0) ? (now - gStartMs) : (now - gLastLapStartMs);
+    } else if (gState == UI_FINISHED) {
+      snapshot.currentLapMs = gLastLapMs;
+    } else {
+      snapshot.currentLapMs = 0;
+    }
+    lv_time_attack_ui_update(snapshot);
+  }
+#endif
+
+#if !USE_LVGL_UI
   if (justPressed) {
 #if TOUCH_DEBUG
     Serial.printf("TOUCH DOWN raw(%u,%u) norm(%u,%u) rot(%u,%u)\n",
@@ -706,9 +811,9 @@ void loop() {
         changed = true;
       } else if (HitTest(BTN_START, lastX, lastY)) {
         StartArmed();
-        if ((now - lastBeepMs) >= BEEP_DEBOUNCE_MS) {
+        if ((now - gLastBeepMs) >= BEEP_DEBOUNCE_MS) {
           BeepNow(2400, 35);
-          lastBeepMs = now;
+          gLastBeepMs = now;
         }
       }
       if (changed) {
@@ -734,4 +839,5 @@ void loop() {
       }
     }
   }
+#endif
 }
