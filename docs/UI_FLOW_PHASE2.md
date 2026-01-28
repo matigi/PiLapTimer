@@ -19,6 +19,7 @@ If conflicts arise, this document governs screen flow and interaction behavior.
 ## 2. UI Design Principles
 
 - Touch UI must be simple and readable at a glance
+- UI is rendered in a landscape logical space (456x280) via 90° CW rotation
 - No configuration changes allowed during an active run
 - All state transitions must be explicit and predictable
 - Touch input must never interfere with IR detection
@@ -126,7 +127,9 @@ Show run progress clearly while driving.
 
 **Display:**
 Driver: 3
-Lap: 2 / 5
+LAP 2 / 5 (large)
+
+Current Lap Time (large highlighted)
 
 Last Lap: 0:16.201
 Best Lap: 0:15.892

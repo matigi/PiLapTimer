@@ -1,6 +1,6 @@
 # PiLapTimer – Project Status
 
-Last updated: time-attack UI + lap timing validation
+Last updated: time-attack UI rotation + readability polish
 
 # Project Status (Authoritative)
 
@@ -15,6 +15,7 @@ The README provides a high-level summary only.
 - RP2350 AMOLED display initializes and updates correctly
 - Touch controller (FT3168) reads coordinates reliably
 - Time-attack UI flow: driver selection, lap count selection, arming, run, results
+- Rotated landscape UI (456x280 logical) with larger running lap/time readouts
 - IR lap detection starts runs, records laps, and finishes at target laps
 - Buzzer beeps on lap events and completion
 - Display stays stable with full UI flow
@@ -45,12 +46,11 @@ Verified via:
 
 ## Current Focus
 
-Current focus is **hw-m06: lap timing engine + time-attack UI validation**.
+Current focus is **post-hw-m06 polish + next milestone planning**.
 
 Specifically:
-- Verify driver/lap selection and arming flow
-- Validate lap timing accuracy and lockout behavior
-- Confirm beeper and screen updates during active sessions
+- Maintain UI stability and readability
+- Capture any remaining UX tweaks before moving to storage/wireless milestones
 
 ---
 
