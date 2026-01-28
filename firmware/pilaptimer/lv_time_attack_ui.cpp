@@ -1,6 +1,7 @@
 #include "lv_time_attack_ui.h"
 
 #include <stdio.h>
+#include <string.h>
 
 namespace {
 constexpr uint8_t kMaxDrivers = 10;
@@ -283,6 +284,11 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   driverNextHandler = driverNextCb;
   lapsPrevHandler = lapsPrevCb;
   lapsNextHandler = lapsNextCb;
+
+  lv_style_init(&bestRowStyle);
+  lv_style_set_bg_color(&bestRowStyle, lv_color_hex(0x1f2f3f));
+  lv_style_set_bg_opa(&bestRowStyle, LV_OPA_COVER);
+  lv_style_set_text_color(&bestRowStyle, lv_color_hex(0xffe6a3));
 
   refs.screen = lv_obj_create(nullptr);
   lv_obj_set_style_bg_color(refs.screen, lv_color_hex(0x0b0f14), 0);
