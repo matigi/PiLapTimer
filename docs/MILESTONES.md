@@ -132,6 +132,31 @@ Prevent false or duplicate lap detections.
 This is the stable Phase 1 baseline.
 ---
 
+## Milestone 5 – Touch + Beeper Recovery Baseline
+## hw-m05-touch-beeper-ok
+**Status: COMPLETE**
+
+### Objective
+Recover a stable touch + buzzer baseline after refactors and troubleshooting.
+
+### Scope
+- Touch controller re-init via QMI8658 bring-up
+- Hardened touch reads to avoid stuck-down states
+- Simplified touch demo UI with coordinate display + crosshair
+- Immediate buzzer feedback on touch
+
+### Requirements
+- Touch down/up detection is reliable across repeated taps
+- Buzzer beeps on touch down without I2C pin conflicts
+- Display updates remain stable with the simplified UI
+
+### Definition of Done
+- Touch ID read returns 0x03
+- Tap produces a beep and updates the on-screen coordinates
+- No persistent stuck-down touch state after release
+
+---
+
 ## hw-m06 – Driver Selection + Fixed-Lap Competitive Runs
 **Status: IN PROGRESS**
 

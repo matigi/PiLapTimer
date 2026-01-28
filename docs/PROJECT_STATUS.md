@@ -1,6 +1,6 @@
 # PiLapTimer – Project Status
 
-Last updated: Phase 2, hw-m06 in progress
+Last updated: hw-m05-touch-beeper-ok baseline
 
 # Project Status (Authoritative)
 
@@ -14,10 +14,9 @@ The README provides a high-level summary only.
 
 - RP2350 AMOLED display initializes and updates correctly
 - Touch controller (FT3168) reads coordinates reliably
-- IR receiver detects beacon presence consistently
-- Lap counter increments correctly
-- Cooldown and minimum lap time enforced
-- System stable without false triggers
+- Touch UI test screen renders raw + normalized coordinates
+- Buzzer beeps on touch events
+- Display stays stable with simplified firmware
 
 Verified via:
 - Serial logs
@@ -28,8 +27,8 @@ Verified via:
 
 ## Known-Good Commit / Tag
 
-- **Tag:** `hw-m03-rx-touch-ir-ok`
-- This tag represents a stable baseline
+- **Tag:** `hw-m05-touch-beeper-ok`
+- This tag represents a stable baseline for touch + beeper bring-up
 - Future work must build on this tag
 
 ---
@@ -45,27 +44,27 @@ Verified via:
 
 ## Current Focus
 
-Current focus is **hw-m06: driver selection + fixed-lap competitive runs**.
+Current focus is **hw-m05: touch + beeper recovery baseline**.
 
 Specifically:
-- Driver selection (1–10) on the idle screen
-- Target lap selection before starting a run
-- Armed → Running → Finished flow per UI_FLOW_PHASE2.md
-- Results screen with total, best, and average lap times
-- Non-blocking lap and completion beeps
+- Confirm stable touch down/up detection
+- Verify buzzer output on touch
+- Keep the demo UI + touch crosshair stable
+- Reintroduce lap-timer features once input/output are verified
 
 ---
 
 ## Known Risks / Notes
 
-- Outdoor sunlight may reduce IR margin; hysteresis currently mitigates this
-- IR thresholds may need minor tuning during outdoor field testing
-- Beacon enclosure/aiming not finalized yet
+- Touch controller can glitch (0xFF); hardened reads mitigate stuck-down states
+- Buzzer pin must avoid GP6/GP7 (I2C)
 
 ---
 
 ## Not Started Yet
 
+- Reintroducing IR lap detection
+- Driver selection + competitive runs
 - Wireless ESP32 integration
 - Data storage
 - Multi-kart support
