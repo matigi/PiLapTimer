@@ -219,6 +219,7 @@ lv_obj_t *makeSpinboxRow(lv_obj_t *parent, const char *labelText,
   lv_obj_set_style_pad_row(*spinbox, 0, 0);
   lv_obj_set_style_bg_opa(*spinbox, LV_OPA_TRANSP, LV_STATE_FOCUSED | LV_STATE_EDITED | LV_STATE_PRESSED);
   lv_obj_set_style_border_width(*spinbox, 0, LV_STATE_FOCUSED | LV_STATE_EDITED | LV_STATE_PRESSED);
+  lv_obj_remove_style(*spinbox, NULL, LV_PART_CURSOR);
   lv_obj_clear_flag(*spinbox, LV_OBJ_FLAG_CLICKABLE);
 
   *plusBtn = lv_btn_create(row);
@@ -275,8 +276,8 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   refs.bestLabel = lv_label_create(refs.raceTile);
   lv_label_set_text(refs.bestLabel, "BEST --:--.---");
   lv_obj_set_style_text_color(refs.bestLabel, lv_color_hex(0xc3d2e4), 0);
-  lv_obj_set_style_text_font(refs.bestLabel, &lv_font_montserrat_20, 0);
-  lv_obj_set_width(refs.bestLabel, 200);
+  lv_obj_set_style_text_font(refs.bestLabel, &lv_font_montserrat_24, 0);
+  lv_obj_set_width(refs.bestLabel, 240);
   lv_label_set_long_mode(refs.bestLabel, LV_LABEL_LONG_CLIP);
   lv_obj_align(refs.bestLabel, LV_ALIGN_TOP_LEFT, 16, 12);
 
