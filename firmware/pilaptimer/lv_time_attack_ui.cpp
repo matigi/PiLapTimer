@@ -6,7 +6,6 @@
 namespace {
 constexpr uint8_t kMaxDrivers = 10;
 constexpr uint8_t kMaxLaps = 20;
-constexpr uint32_t kResetHoldMs = 800;
 constexpr uint32_t kBestIconMs = 1000;
 
 struct UiRefs {
@@ -47,10 +46,7 @@ void (*lapsNextHandler)() = nullptr;
 
 lv_style_t bestRowStyle;
 
-lv_timer_t *resetHoldTimer = nullptr;
 lv_timer_t *bestIconTimer = nullptr;
-uint32_t resetHoldStart = 0;
-bool resetTriggered = false;
 uint8_t lastLapCount = 0;
 
 
@@ -144,45 +140,15 @@ void start_btn_event(lv_event_t *e) {
   }
 }
 
-void reset_hold_timer_cb(lv_timer_t *timer) {
-  LV_UNUSED(timer);
-  if (!lv_obj_has_state(refs.resetBtn, LV_STATE_PRESSED)) {
-    lv_label_set_text(refs.resetLabel, "RESET");
-    lv_timer_pause(resetHoldTimer);
-    resetTriggered = false;
-    return;
-  }
-  uint32_t elapsed = lv_tick_get() - resetHoldStart;
-  if (elapsed >= kResetHoldMs && !resetTriggered) {
-    resetTriggered = true;
-    lv_label_set_text(refs.resetLabel, "RESET");
-    if (resetHandler) resetHandler();
-    lv_timer_pause(resetHoldTimer);
-  } else {
-    lv_label_set_text(refs.resetLabel, "HOLD");
-  }
-}
-
 void reset_btn_event(lv_event_t *e) {
   lv_event_code_t code = lv_event_get_code(e);
   lv_obj_t *obj = lv_event_get_target(e);
   if (code == LV_EVENT_PRESSED) {
     animatePress(obj, true);
-    resetHoldStart = lv_tick_get();
-    resetTriggered = false;
-    lv_label_set_text(refs.resetLabel, "HOLD");
-    if (resetHoldTimer) {
-      lv_timer_reset(resetHoldTimer);
-      lv_timer_resume(resetHoldTimer);
-    }
   } else if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
     animatePress(obj, false);
-    if (!resetTriggered) {
-      lv_label_set_text(refs.resetLabel, "RESET");
-    }
-    if (resetHoldTimer) {
-      lv_timer_pause(resetHoldTimer);
-    }
+  } else if (code == LV_EVENT_CLICKED) {
+    if (resetHandler) resetHandler();
   }
 }
 
@@ -213,7 +179,7 @@ void laps_plus_event(lv_event_t *e) {
 lv_obj_t *makeSpinboxRow(lv_obj_t *parent, const char *labelText,
                          lv_obj_t **minusBtn, lv_obj_t **spinbox, lv_obj_t **plusBtn) {
   lv_obj_t *row = lv_obj_create(parent);
-  lv_obj_set_size(row, 420, 72);
+  lv_obj_set_size(row, 420, 80);
   lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(row, 0, 0);
   lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
@@ -224,12 +190,12 @@ lv_obj_t *makeSpinboxRow(lv_obj_t *parent, const char *labelText,
   lv_obj_t *label = lv_label_create(row);
   lv_label_set_text(label, labelText);
   lv_obj_set_style_text_color(label, lv_color_hex(0x8fa0b6), 0);
-  lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
-  lv_obj_set_width(label, 120);
+  lv_obj_set_style_text_font(label, &lv_font_montserrat_24, 0);
+  lv_obj_set_width(label, 140);
   lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_LEFT, 0);
 
   *minusBtn = lv_btn_create(row);
-  lv_obj_set_size(*minusBtn, 56, 56);
+  lv_obj_set_size(*minusBtn, 68, 68);
   lv_obj_set_style_radius(*minusBtn, 18, 0);
   lv_obj_set_style_bg_color(*minusBtn, lv_color_hex(0x1e2a38), 0);
   lv_obj_set_style_bg_opa(*minusBtn, LV_OPA_COVER, 0);
@@ -243,18 +209,20 @@ lv_obj_t *makeSpinboxRow(lv_obj_t *parent, const char *labelText,
   lv_spinbox_set_range(*spinbox, 1, kMaxDrivers);
   lv_spinbox_set_digit_format(*spinbox, 2, 0);
   lv_spinbox_set_step(*spinbox, 1);
-  lv_obj_set_size(*spinbox, 72, 48);
+  lv_obj_set_size(*spinbox, 80, 56);
   lv_obj_set_style_text_align(*spinbox, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_set_style_text_font(*spinbox, &lv_font_montserrat_32, 0);
+  lv_obj_set_style_text_font(*spinbox, &lv_font_montserrat_48, 0);
   lv_obj_set_style_text_color(*spinbox, lv_color_hex(0xf5f8ff), 0);
   lv_obj_set_style_bg_opa(*spinbox, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(*spinbox, 0, 0);
   lv_obj_set_style_pad_all(*spinbox, 0, 0);
   lv_obj_set_style_pad_row(*spinbox, 0, 0);
+  lv_obj_set_style_bg_opa(*spinbox, LV_OPA_TRANSP, LV_STATE_FOCUSED | LV_STATE_EDITED | LV_STATE_PRESSED);
+  lv_obj_set_style_border_width(*spinbox, 0, LV_STATE_FOCUSED | LV_STATE_EDITED | LV_STATE_PRESSED);
   lv_obj_clear_flag(*spinbox, LV_OBJ_FLAG_CLICKABLE);
 
   *plusBtn = lv_btn_create(row);
-  lv_obj_set_size(*plusBtn, 56, 56);
+  lv_obj_set_size(*plusBtn, 68, 68);
   lv_obj_set_style_radius(*plusBtn, 18, 0);
   lv_obj_set_style_bg_color(*plusBtn, lv_color_hex(0x1e2a38), 0);
   lv_obj_set_style_bg_opa(*plusBtn, LV_OPA_COVER, 0);
@@ -459,9 +427,6 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_obj_add_event_cb(refs.driverPlusBtn, driver_plus_event, LV_EVENT_ALL, nullptr);
   lv_obj_add_event_cb(refs.lapsMinusBtn, laps_minus_event, LV_EVENT_ALL, nullptr);
   lv_obj_add_event_cb(refs.lapsPlusBtn, laps_plus_event, LV_EVENT_ALL, nullptr);
-
-  resetHoldTimer = lv_timer_create(reset_hold_timer_cb, 50, nullptr);
-  lv_timer_pause(resetHoldTimer);
 
   bestIconTimer = lv_timer_create(hideBestIcon, kBestIconMs, nullptr);
   lv_timer_pause(bestIconTimer);

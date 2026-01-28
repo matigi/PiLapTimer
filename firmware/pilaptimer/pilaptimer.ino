@@ -48,6 +48,7 @@ static const uint8_t  BUZZER_PIN = 16;
 // IR lap trigger input
 static const uint8_t  IR_IN_PIN = 1; // GP1
 static const uint32_t LAP_LOCKOUT_MS = 1500;
+static const uint32_t IR_RELEASE_MS = 200;
 
 // Polling + state windowing
 static const uint16_t POLL_MS              = 10;
@@ -164,6 +165,9 @@ static void RotateTouch(uint16_t nx, uint16_t ny, uint16_t &rx, uint16_t &ry) {
 
 volatile bool gIrSeen = false;
 volatile uint32_t gIrSeenMs = 0;
+static bool gIrActive = false;
+static uint32_t gIrReleaseStartMs = 0;
+static uint32_t gIrLastReleaseMs = 0;
 
 void IRAM_ATTR IrIsr() {
   gIrSeenMs = (uint32_t)millis();
@@ -749,45 +753,64 @@ void loop() {
     return;
 #endif
   }
-  bool irTriggered = false;
-  uint32_t irMs = 0;
+  uint32_t irMs = now;
+  bool signalActive = (digitalRead(IR_IN_PIN) == LOW);
   if (gIrSeen) {
     noInterrupts();
-    irTriggered = gIrSeen;
     irMs = gIrSeenMs;
     gIrSeen = false;
     interrupts();
+    signalActive = true;
   }
 
-  if (irTriggered && (irMs - gLastLapTriggerMs) >= LAP_LOCKOUT_MS) {
-    gLastLapTriggerMs = irMs;
-    if (gState == UI_ARMED) {
-      Serial.println("IR: start run");
-      StartRunning(irMs);
-    } else if (gState == UI_RUNNING) {
-      gLapCount++;
-      gLastLapMs = irMs - gLastLapStartMs;
-      gLastLapStartMs = irMs;
-      gSessionMs = irMs - gStartMs;
-      if (gBestLapMs == 0 || gLastLapMs < gBestLapMs) {
-        gBestLapMs = gLastLapMs;
-      }
-      gDeltaMs = (int32_t)gLastLapMs - (int32_t)gBestLapMs;
+  if (signalActive) {
+    gIrReleaseStartMs = 0;
+    if (!gIrActive) {
+      // Rising edge: only count once per IR active window, with lockout and release guard.
+      if ((now - gLastLapTriggerMs) >= LAP_LOCKOUT_MS &&
+          (now - gIrLastReleaseMs) >= IR_RELEASE_MS) {
+        gLastLapTriggerMs = now;
+        if (gState == UI_ARMED) {
+          Serial.println("IR: start run");
+          StartRunning(irMs);
+        } else if (gState == UI_RUNNING) {
+          gLapCount++;
+          gLastLapMs = irMs - gLastLapStartMs;
+          gLastLapStartMs = irMs;
+          gSessionMs = irMs - gStartMs;
+          if (gBestLapMs == 0 || gLastLapMs < gBestLapMs) {
+            gBestLapMs = gLastLapMs;
+          }
+          gDeltaMs = (int32_t)gLastLapMs - (int32_t)gBestLapMs;
 
-      Serial.printf("LAP %u time=%lu ms\n", (unsigned)gLapCount, (unsigned long)gLastLapMs);
+          Serial.printf("LAP %u time=%lu ms\n", (unsigned)gLapCount, (unsigned long)gLastLapMs);
 
-      if ((irMs - gLastBeepMs) >= BEEP_DEBOUNCE_MS) {
-        BeepLap();
-        gLastBeepMs = irMs;
-      }
+          if ((irMs - gLastBeepMs) >= BEEP_DEBOUNCE_MS) {
+            BeepLap();
+            gLastBeepMs = irMs;
+          }
 
-      if (gLapCount >= gSelectedLaps) {
-        BeepComplete();
-        FinishRun(irMs);
-      } else {
-        RenderState();
+          if (gLapCount >= gSelectedLaps) {
+            BeepComplete();
+            FinishRun(irMs);
+          } else {
+            RenderState();
+          }
+        }
       }
+      gIrActive = true;
     }
+  } else if (gIrActive) {
+    if (gIrReleaseStartMs == 0) {
+      gIrReleaseStartMs = now;
+    }
+    if ((now - gIrReleaseStartMs) >= IR_RELEASE_MS) {
+      gIrActive = false;
+      gIrLastReleaseMs = now;
+      gIrReleaseStartMs = 0;
+    }
+  } else {
+    gIrReleaseStartMs = 0;
   }
 
   if (gState == UI_RUNNING) {
