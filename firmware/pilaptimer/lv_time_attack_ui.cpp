@@ -159,14 +159,12 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_obj_clear_flag(refs.settingsScreen, LV_OBJ_FLAG_SCROLLABLE);
 
   refs.title = lv_label_create(refs.screen);
-  lv_label_set_text(refs.title, "Time Attack");
-  lv_obj_set_style_text_color(refs.title, lv_color_hex(0x8fa0b6), 0);
-  lv_obj_set_style_text_font(refs.title, &lv_font_montserrat_20, 0);
-  lv_obj_align(refs.title, LV_ALIGN_TOP_LEFT, 16, 12);
+  lv_label_set_text(refs.title, "");
+  lv_obj_add_flag(refs.title, LV_OBJ_FLAG_HIDDEN);
 
   refs.settingsBtn = lv_btn_create(refs.screen);
-  lv_obj_set_size(refs.settingsBtn, 108, 40);
-  lv_obj_set_style_radius(refs.settingsBtn, 16, 0);
+  lv_obj_set_size(refs.settingsBtn, 44, 44);
+  lv_obj_set_style_radius(refs.settingsBtn, 14, 0);
   lv_obj_set_style_bg_color(refs.settingsBtn, lv_color_hex(0x1e2a38), 0);
   lv_obj_set_style_bg_opa(refs.settingsBtn, LV_OPA_COVER, 0);
   lv_obj_set_style_border_width(refs.settingsBtn, 0, 0);
@@ -174,8 +172,8 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_obj_add_event_cb(refs.settingsBtn, settings_open_event, LV_EVENT_ALL, nullptr);
 
   refs.settingsLabel = lv_label_create(refs.settingsBtn);
-  lv_label_set_text(refs.settingsLabel, "SETUP");
-  lv_obj_set_style_text_font(refs.settingsLabel, &lv_font_montserrat_20, 0);
+  lv_label_set_text(refs.settingsLabel, LV_SYMBOL_SETTINGS);
+  lv_obj_set_style_text_font(refs.settingsLabel, &lv_font_montserrat_24, 0);
   lv_obj_set_style_text_color(refs.settingsLabel, lv_color_hex(0xe5edf7), 0);
   lv_obj_center(refs.settingsLabel);
 
@@ -204,19 +202,19 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_label_set_text(refs.bestLabel, "Best --:--.---");
   lv_obj_set_style_text_color(refs.bestLabel, lv_color_hex(0xc3d2e4), 0);
   lv_obj_set_style_text_font(refs.bestLabel, &lv_font_montserrat_20, 0);
-  lv_obj_align(refs.bestLabel, LV_ALIGN_TOP_LEFT, 16, 184);
+  lv_obj_align(refs.bestLabel, LV_ALIGN_TOP_LEFT, 16, 156);
 
   refs.lapLabel = lv_label_create(refs.screen);
   lv_label_set_text(refs.lapLabel, "Lap 0/0");
   lv_obj_set_style_text_color(refs.lapLabel, lv_color_hex(0xc3d2e4), 0);
   lv_obj_set_style_text_font(refs.lapLabel, &lv_font_montserrat_20, 0);
-  lv_obj_align(refs.lapLabel, LV_ALIGN_TOP_RIGHT, -16, 184);
+  lv_obj_align(refs.lapLabel, LV_ALIGN_TOP_RIGHT, -16, 156);
 
   refs.sessionLabel = lv_label_create(refs.screen);
   lv_label_set_text(refs.sessionLabel, "Session --:--.---");
   lv_obj_set_style_text_color(refs.sessionLabel, lv_color_hex(0x8fa0b6), 0);
   lv_obj_set_style_text_font(refs.sessionLabel, &lv_font_montserrat_20, 0);
-  lv_obj_align(refs.sessionLabel, LV_ALIGN_TOP_MID, 0, 214);
+  lv_obj_align(refs.sessionLabel, LV_ALIGN_TOP_MID, 0, 186);
 
   lv_obj_t *buttonRow = lv_obj_create(refs.screen);
   lv_obj_set_size(buttonRow, 420, 72);
@@ -317,14 +315,14 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
                                           &refs.driverMinusBtn,
                                           &refs.driver,
                                           &refs.driverPlusBtn);
-  lv_obj_align(driverRow, LV_ALIGN_TOP_MID, 0, 70);
+  lv_obj_align(driverRow, LV_ALIGN_TOP_MID, 0, 60);
 
   lv_obj_t *lapsRow = make_settings_row(refs.settingsScreen,
                                         "Laps 5",
                                         &refs.lapsMinusBtn,
                                         &refs.lapsValue,
                                         &refs.lapsPlusBtn);
-  lv_obj_align(lapsRow, LV_ALIGN_TOP_MID, 0, 180);
+  lv_obj_align(lapsRow, LV_ALIGN_TOP_MID, 0, 160);
 
   lv_obj_add_event_cb(refs.driverMinusBtn, driver_minus_event, LV_EVENT_ALL, nullptr);
   lv_obj_add_event_cb(refs.driverPlusBtn, driver_plus_event, LV_EVENT_ALL, nullptr);
@@ -332,18 +330,18 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_obj_add_event_cb(refs.lapsPlusBtn, laps_plus_event, LV_EVENT_ALL, nullptr);
 
   refs.settingsBackBtn = lv_btn_create(refs.settingsScreen);
-  lv_obj_set_size(refs.settingsBackBtn, 200, 64);
-  lv_obj_set_style_radius(refs.settingsBackBtn, 18, 0);
+  lv_obj_set_size(refs.settingsBackBtn, 108, 40);
+  lv_obj_set_style_radius(refs.settingsBackBtn, 14, 0);
   lv_obj_set_style_bg_color(refs.settingsBackBtn, lv_color_hex(0x1e2a38), 0);
   lv_obj_set_style_bg_opa(refs.settingsBackBtn, LV_OPA_COVER, 0);
   lv_obj_set_style_border_width(refs.settingsBackBtn, 1, 0);
   lv_obj_set_style_border_color(refs.settingsBackBtn, lv_color_hex(0x2e4052), 0);
-  lv_obj_align(refs.settingsBackBtn, LV_ALIGN_BOTTOM_MID, 0, -18);
+  lv_obj_align(refs.settingsBackBtn, LV_ALIGN_TOP_RIGHT, -12, 8);
   lv_obj_add_event_cb(refs.settingsBackBtn, settings_back_event, LV_EVENT_ALL, nullptr);
 
   refs.settingsBackLabel = lv_label_create(refs.settingsBackBtn);
   lv_label_set_text(refs.settingsBackLabel, "BACK");
-  lv_obj_set_style_text_font(refs.settingsBackLabel, &lv_font_montserrat_24, 0);
+  lv_obj_set_style_text_font(refs.settingsBackLabel, &lv_font_montserrat_20, 0);
   lv_obj_center(refs.settingsBackLabel);
 
   lv_scr_load(refs.screen);
