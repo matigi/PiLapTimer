@@ -13,7 +13,7 @@ static constexpr bool kSwapBytesInFlush = true;
 static_assert(sizeof(lv_color_t) == 2, "LVGL must be configured for RGB565");
 
 static lv_color_t s_buf1[LVGL_LOGICAL_W * kBufLines];
-static uint16_t s_tmp565[LVGL_LOGICAL_H * kBufLines];
+static uint16_t s_tmp565[LVGL_LOGICAL_W * kBufLines];
 
 static inline uint16_t bswap16(uint16_t v) { return (uint16_t)((v << 8) | (v >> 8)); }
 
