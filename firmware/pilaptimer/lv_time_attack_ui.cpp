@@ -210,46 +210,26 @@ void laps_plus_event(lv_event_t *e) {
   }
 }
 
-lv_obj_t *makeSpinboxColumn(lv_obj_t *parent, const char *labelText,
-                            lv_obj_t **minusBtn, lv_obj_t **spinbox, lv_obj_t **plusBtn) {
-  lv_obj_t *column = lv_obj_create(parent);
-  lv_obj_set_size(column, 420, 120);
-  lv_obj_set_style_bg_opa(column, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(column, 0, 0);
-  lv_obj_set_flex_flow(column, LV_FLEX_FLOW_COLUMN);
-  lv_obj_set_flex_align(column, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-  lv_obj_set_style_pad_gap(column, 8, 0);
-  lv_obj_clear_flag(column, LV_OBJ_FLAG_SCROLLABLE);
-
-  lv_obj_t *label = lv_label_create(column);
-  lv_label_set_text(label, labelText);
-  lv_obj_set_style_text_color(label, lv_color_hex(0x8fa0b6), 0);
-  lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
-
-  *spinbox = lv_spinbox_create(column);
-  lv_spinbox_set_range(*spinbox, 1, kMaxDrivers);
-  lv_spinbox_set_digit_format(*spinbox, 2, 0);
-  lv_spinbox_set_step(*spinbox, 1);
-  lv_obj_set_size(*spinbox, 140, 42);
-  lv_obj_set_style_text_align(*spinbox, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_set_style_text_font(*spinbox, &lv_font_montserrat_32, 0);
-  lv_obj_set_style_text_color(*spinbox, lv_color_hex(0xf5f8ff), 0);
-  lv_obj_set_style_bg_color(*spinbox, lv_color_hex(0x0f151d), 0);
-  lv_obj_set_style_bg_opa(*spinbox, LV_OPA_COVER, 0);
-  lv_obj_set_style_border_width(*spinbox, 1, 0);
-  lv_obj_set_style_border_color(*spinbox, lv_color_hex(0x2e4052), 0);
-  lv_obj_clear_flag(*spinbox, LV_OBJ_FLAG_CLICKABLE);
-
-  lv_obj_t *row = lv_obj_create(column);
-  lv_obj_set_size(row, 240, 60);
+lv_obj_t *makeSpinboxRow(lv_obj_t *parent, const char *labelText,
+                         lv_obj_t **minusBtn, lv_obj_t **spinbox, lv_obj_t **plusBtn) {
+  lv_obj_t *row = lv_obj_create(parent);
+  lv_obj_set_size(row, 420, 72);
   lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(row, 0, 0);
   lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-  lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_gap(row, 12, 0);
   lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
 
+  lv_obj_t *label = lv_label_create(row);
+  lv_label_set_text(label, labelText);
+  lv_obj_set_style_text_color(label, lv_color_hex(0x8fa0b6), 0);
+  lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
+  lv_obj_set_width(label, 120);
+  lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_LEFT, 0);
+
   *minusBtn = lv_btn_create(row);
-  lv_obj_set_size(*minusBtn, 60, 60);
+  lv_obj_set_size(*minusBtn, 56, 56);
   lv_obj_set_style_radius(*minusBtn, 18, 0);
   lv_obj_set_style_bg_color(*minusBtn, lv_color_hex(0x1e2a38), 0);
   lv_obj_set_style_bg_opa(*minusBtn, LV_OPA_COVER, 0);
@@ -259,8 +239,22 @@ lv_obj_t *makeSpinboxColumn(lv_obj_t *parent, const char *labelText,
   lv_obj_set_style_text_font(minusLabel, &lv_font_montserrat_32, 0);
   lv_obj_center(minusLabel);
 
+  *spinbox = lv_spinbox_create(row);
+  lv_spinbox_set_range(*spinbox, 1, kMaxDrivers);
+  lv_spinbox_set_digit_format(*spinbox, 2, 0);
+  lv_spinbox_set_step(*spinbox, 1);
+  lv_obj_set_size(*spinbox, 72, 48);
+  lv_obj_set_style_text_align(*spinbox, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_style_text_font(*spinbox, &lv_font_montserrat_32, 0);
+  lv_obj_set_style_text_color(*spinbox, lv_color_hex(0xf5f8ff), 0);
+  lv_obj_set_style_bg_opa(*spinbox, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(*spinbox, 0, 0);
+  lv_obj_set_style_pad_all(*spinbox, 0, 0);
+  lv_obj_set_style_pad_row(*spinbox, 0, 0);
+  lv_obj_clear_flag(*spinbox, LV_OBJ_FLAG_CLICKABLE);
+
   *plusBtn = lv_btn_create(row);
-  lv_obj_set_size(*plusBtn, 60, 60);
+  lv_obj_set_size(*plusBtn, 56, 56);
   lv_obj_set_style_radius(*plusBtn, 18, 0);
   lv_obj_set_style_bg_color(*plusBtn, lv_color_hex(0x1e2a38), 0);
   lv_obj_set_style_bg_opa(*plusBtn, LV_OPA_COVER, 0);
@@ -270,7 +264,7 @@ lv_obj_t *makeSpinboxColumn(lv_obj_t *parent, const char *labelText,
   lv_obj_set_style_text_font(plusLabel, &lv_font_montserrat_32, 0);
   lv_obj_center(plusLabel);
 
-  return column;
+  return row;
 }
 }  // namespace
 
@@ -327,8 +321,9 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   refs.lapLabel = lv_label_create(refs.raceTile);
   lv_label_set_text(refs.lapLabel, "LAP 0/0");
   lv_obj_set_style_text_color(refs.lapLabel, lv_color_hex(0xc3d2e4), 0);
-  lv_obj_set_style_text_font(refs.lapLabel, &lv_font_montserrat_20, 0);
-  lv_obj_set_width(refs.lapLabel, 140);
+  lv_obj_set_style_text_font(refs.lapLabel, &lv_font_montserrat_48, 0);
+  lv_obj_set_width(refs.lapLabel, 220);
+  lv_obj_set_style_text_align(refs.lapLabel, LV_TEXT_ALIGN_RIGHT, 0);
   lv_label_set_long_mode(refs.lapLabel, LV_LABEL_LONG_CLIP);
   lv_obj_align(refs.lapLabel, LV_ALIGN_TOP_RIGHT, -16, 12);
 
@@ -338,7 +333,7 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_obj_set_style_text_font(refs.lapTime, &lv_font_montserrat_48, 0);
   lv_obj_set_width(refs.lapTime, 320);
   lv_label_set_long_mode(refs.lapTime, LV_LABEL_LONG_CLIP);
-  lv_obj_align(refs.lapTime, LV_ALIGN_TOP_MID, 0, 64);
+  lv_obj_align(refs.lapTime, LV_ALIGN_TOP_MID, 0, 72);
   lv_obj_set_style_text_align(refs.lapTime, LV_TEXT_ALIGN_CENTER, 0);
 
   refs.deltaPill = lv_obj_create(refs.raceTile);
@@ -443,13 +438,21 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_obj_set_style_text_font(settingsTitle, &lv_font_montserrat_24, 0);
   lv_obj_align(settingsTitle, LV_ALIGN_TOP_LEFT, 16, 12);
 
-  lv_obj_t *driverRow = makeSpinboxColumn(refs.settingsTile, "DRIVER",
-                                          &refs.driverMinusBtn, &refs.driverSpinbox, &refs.driverPlusBtn);
-  lv_obj_align(driverRow, LV_ALIGN_TOP_MID, 0, 36);
+  lv_obj_t *settingsContainer = lv_obj_create(refs.settingsTile);
+  lv_obj_set_size(settingsContainer, 420, LV_SIZE_CONTENT);
+  lv_obj_set_style_bg_opa(settingsContainer, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(settingsContainer, 0, 0);
+  lv_obj_set_flex_flow(settingsContainer, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(settingsContainer, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_gap(settingsContainer, 16, 0);
+  lv_obj_clear_flag(settingsContainer, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_align(settingsContainer, LV_ALIGN_TOP_MID, 0, 56);
 
-  lv_obj_t *lapsRow = makeSpinboxColumn(refs.settingsTile, "LAPS",
-                                        &refs.lapsMinusBtn, &refs.lapsSpinbox, &refs.lapsPlusBtn);
-  lv_obj_align(lapsRow, LV_ALIGN_TOP_MID, 0, 156);
+  (void)makeSpinboxRow(settingsContainer, "DRIVER",
+                       &refs.driverMinusBtn, &refs.driverSpinbox, &refs.driverPlusBtn);
+
+  (void)makeSpinboxRow(settingsContainer, "LAPS",
+                       &refs.lapsMinusBtn, &refs.lapsSpinbox, &refs.lapsPlusBtn);
   lv_spinbox_set_range(refs.lapsSpinbox, 1, kMaxLaps);
 
   lv_obj_add_event_cb(refs.driverMinusBtn, driver_minus_event, LV_EVENT_ALL, nullptr);
@@ -499,7 +502,7 @@ void lv_time_attack_ui_update(const UiSnapshot &snapshot) {
   lv_label_set_text(refs.lapLabel, line);
 
   formatTimeMaybe(timeBuf, sizeof(timeBuf), snapshot.state == UI_RUNNING || snapshot.state == UI_FINISHED,
-                  snapshot.currentLapMs);
+                  snapshot.sessionMs);
   lv_label_set_text(refs.lapTime, timeBuf);
 
   if (snapshot.lapCount > 0 && snapshot.bestLapMs > 0) {
