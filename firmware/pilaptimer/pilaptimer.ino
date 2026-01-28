@@ -679,11 +679,14 @@ void loop() {
   static uint16_t lastX = 0, lastY = 0;
 
 #endif
-  if ((uint32_t)(now - lastPoll) < POLL_MS) return;
-  lastPoll = now;
+  const bool pollReady = (uint32_t)(now - lastPoll) >= POLL_MS;
+  if (pollReady) {
+    lastPoll = now;
+  }
 
   // Try to get a sample
 #if !USE_LVGL_UI
+  if (!pollReady) return;
   uint16_t rawX = 0, rawY = 0;
   bool gotSample = ReadTouchSample(rawX, rawY);
 
@@ -702,6 +705,13 @@ void loop() {
 #endif
 
   // IR events
+  if (!pollReady) {
+#if USE_LVGL_UI
+    // Skip polling-sensitive logic but allow LVGL updates below.
+#else
+    return;
+#endif
+  }
   bool irTriggered = false;
   uint32_t irMs = 0;
   if (gIrSeen) {
