@@ -393,7 +393,7 @@ void laps_plus_event(lv_event_t *e) {
 
 void settings_open_event(lv_event_t *e) {
   if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
-    lv_tileview_set_tile(refs.tileview, refs.settingsTile, LV_ANIM_ON);
+    lv_obj_set_tile(refs.tileview, refs.settingsTile, LV_ANIM_ON);
   }
 }
 
@@ -407,7 +407,7 @@ lv_obj_t *makeStatBlock(lv_obj_t *parent, const char *labelText, lv_obj_t **valu
   lv_obj_t *label = lv_label_create(block);
   lv_label_set_text(label, labelText);
   lv_obj_set_style_text_color(label, lv_color_hex(0x8fa0b6), 0);
-  lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
+  lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
   lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 2);
 
   *valueOut = lv_label_create(block);
@@ -506,7 +506,7 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   refs.raceTile = lv_tileview_add_tile(refs.tileview, 1, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
   refs.reviewTile = lv_tileview_add_tile(refs.tileview, 2, 0, LV_DIR_LEFT);
 
-  lv_tileview_set_tile(refs.tileview, refs.raceTile, LV_ANIM_OFF);
+  lv_obj_set_tile(refs.tileview, refs.raceTile, LV_ANIM_OFF);
 
   // Race tile
   refs.bestLabel = lv_label_create(refs.raceTile);
@@ -518,7 +518,7 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_obj_align(refs.bestLabel, LV_ALIGN_TOP_LEFT, 16, 12);
 
   refs.bestIcon = lv_label_create(refs.raceTile);
-  lv_label_set_text(refs.bestIcon, LV_SYMBOL_STAR);
+  lv_label_set_text(refs.bestIcon, LV_SYMBOL_OK);
   lv_obj_set_style_text_color(refs.bestIcon, lv_color_hex(0xffd166), 0);
   lv_obj_set_style_text_font(refs.bestIcon, &lv_font_montserrat_20, 0);
   lv_obj_add_flag(refs.bestIcon, LV_OBJ_FLAG_HIDDEN);
@@ -682,7 +682,7 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_table_set_col_width(refs.lapTable, 0, 60);
   lv_table_set_col_width(refs.lapTable, 1, 200);
   lv_table_set_col_width(refs.lapTable, 2, 120);
-  lv_obj_set_style_text_font(refs.lapTable, &lv_font_montserrat_16, 0);
+  lv_obj_set_style_text_font(refs.lapTable, &lv_font_montserrat_14, 0);
   lv_obj_set_style_border_width(refs.lapTable, 0, 0);
   lv_obj_set_style_bg_color(refs.lapTable, lv_color_hex(0x0f151d), 0);
   lv_obj_set_style_bg_opa(refs.lapTable, LV_OPA_COVER, 0);
