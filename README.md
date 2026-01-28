@@ -59,7 +59,10 @@ Option B (manual):
 2. Place it in your Arduino libraries folder as `lvgl/`
 
 The sketch expects `lv_conf.h` to live alongside the `.ino` file (this repo
-provides one in `firmware/pilaptimer/lv_conf.h`).
+provides one in `firmware/pilaptimer/lv_conf.h`). If you see a compile error
+like `fatal error: lv_conf.h: No such file or directory`, copy
+`firmware/pilaptimer/lv_conf.h` into your Arduino `libraries/lvgl/` folder
+(next to `src/`) so the LVGL library build can include it.
 
 ### Enable or Disable LVGL UI
 
