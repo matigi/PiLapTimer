@@ -557,6 +557,11 @@ static void HandleStartStop() {
     return;
   }
 
+  if (gState == UI_RUNNING) {
+    FinishRun(now);
+    return;
+  }
+
   if (gState == UI_ARMED || gState == UI_FINISHED || gState == UI_STATS) {
     gState = UI_IDLE;
     RenderState();
@@ -808,6 +813,11 @@ void loop() {
     snapshot.lastLapMs = gLastLapMs;
     snapshot.bestLapMs = gBestLapMs;
     snapshot.deltaMs = gDeltaMs;
+    for (uint8_t i = 0; i < MAX_DRIVERS; ++i) {
+      snapshot.driverRunValid[i] = gDriverRuns[i].valid;
+      snapshot.driverTotalMs[i] = gDriverRuns[i].totalMs;
+      snapshot.driverBestLapMs[i] = gDriverRuns[i].bestMs;
+    }
     if (gState == UI_RUNNING) {
       snapshot.currentLapMs = (gLapCount == 0) ? (now - gStartMs) : (now - gLastLapStartMs);
     } else if (gState == UI_FINISHED) {
