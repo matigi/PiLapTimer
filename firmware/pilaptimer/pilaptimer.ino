@@ -25,6 +25,8 @@
 #include "lv_port_indev.h"
 #include "lv_time_attack_ui.h"
 #include "screen_nav.h"
+
+lv_obj_t *screen_gforce_get_screen(void);
 #endif
 
 #ifndef WHITE
