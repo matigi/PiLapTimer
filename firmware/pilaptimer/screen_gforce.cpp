@@ -6,6 +6,7 @@
 #include <Arduino.h>
 
 #include "imu_qmi8658.h"
+#include "screen_nav.h"
 
 static lv_obj_t *gforceScreen = nullptr;
 
@@ -154,6 +155,9 @@ void reset_btn_event(lv_event_t *e) {
 
 void update_timer_cb(lv_timer_t *timer) {
   LV_UNUSED(timer);
+  if (screen_nav_is_transitioning()) {
+    return;
+  }
 
   float acc[3] = {0.0f, 0.0f, 0.0f};
   if (!imu_qmi8658_read_accel(acc[0], acc[1], acc[2])) {
@@ -293,18 +297,18 @@ void build_gforce_screen(lv_obj_t *root) {
   lv_obj_align(refs.labelMax, LV_ALIGN_BOTTOM_LEFT, 18, -24);
 
   refs.resetBtn = lv_btn_create(refs.root);
-  lv_obj_set_size(refs.resetBtn, 120, 34);
-  lv_obj_set_style_radius(refs.resetBtn, 12, 0);
+  lv_obj_set_size(refs.resetBtn, 64, 64);
+  lv_obj_set_style_radius(refs.resetBtn, 32, 0);
   lv_obj_set_style_bg_color(refs.resetBtn, lv_color_hex(0x1c2633), 0);
   lv_obj_set_style_bg_opa(refs.resetBtn, LV_OPA_COVER, 0);
-  lv_obj_set_style_border_width(refs.resetBtn, 1, 0);
+  lv_obj_set_style_border_width(refs.resetBtn, 2, 0);
   lv_obj_set_style_border_color(refs.resetBtn, lv_color_hex(0x2d3a4b), 0);
-  lv_obj_align(refs.resetBtn, LV_ALIGN_BOTTOM_RIGHT, -18, -20);
+  lv_obj_align(refs.resetBtn, LV_ALIGN_BOTTOM_RIGHT, -20, -18);
   lv_obj_add_event_cb(refs.resetBtn, reset_btn_event, LV_EVENT_CLICKED, nullptr);
 
   refs.resetLabel = lv_label_create(refs.resetBtn);
-  lv_label_set_text(refs.resetLabel, "Reset Max");
-  lv_obj_set_style_text_font(refs.resetLabel, &lv_font_montserrat_20, 0);
+  lv_label_set_text(refs.resetLabel, LV_SYMBOL_REFRESH);
+  lv_obj_set_style_text_font(refs.resetLabel, &lv_font_montserrat_32, 0);
   lv_obj_set_style_text_color(refs.resetLabel, lv_color_hex(0xf5f8ff), 0);
   lv_obj_center(refs.resetLabel);
 
@@ -317,7 +321,7 @@ void build_gforce_screen(lv_obj_t *root) {
 }  // namespace
 
 void screen_gforce_init(void) {
-  (void)screen_gforce_get_screen();
+  // Initialized when attached to a parent or created on demand.
 }
 
 lv_obj_t *screen_gforce_get_screen(void) {
@@ -325,4 +329,10 @@ lv_obj_t *screen_gforce_get_screen(void) {
   gforceScreen = lv_obj_create(nullptr);
   build_gforce_screen(gforceScreen);
   return gforceScreen;
+}
+
+void screen_gforce_attach(lv_obj_t *parent) {
+  if (!parent || gforceScreen) return;
+  gforceScreen = parent;
+  build_gforce_screen(gforceScreen);
 }
