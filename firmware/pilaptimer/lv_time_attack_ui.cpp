@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "screen_gforce.h"
-#include "screen_nav.h"
 
 namespace {
 constexpr uint8_t kMaxDrivers = 10;
@@ -187,17 +186,7 @@ void screen_gesture_event(lv_event_t *e) {
   if (!indev) return;
   lv_dir_t dir = lv_indev_get_gesture_dir(indev);
   if (dir == LV_DIR_LEFT && swipeLeftHandler) {
-    screen_nav_set_transitioning(true);
     swipeLeftHandler();
-  }
-}
-
-void tileview_scroll_event(lv_event_t *e) {
-  lv_event_code_t code = lv_event_get_code(e);
-  if (code == LV_EVENT_SCROLL_BEGIN) {
-    screen_nav_set_transitioning(true);
-  } else if (code == LV_EVENT_SCROLL_END) {
-    screen_nav_set_transitioning(false);
   }
 }
 

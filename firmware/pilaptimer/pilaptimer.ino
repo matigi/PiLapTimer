@@ -742,10 +742,7 @@ void setup() {
                          HandleLapsPrev,
                          HandleLapsNext);
   lv_time_attack_ui_set_swipe_left_handler(ShowGForceScreen);
-  screen_gforce_get_screen();
-  if (!screen_nav_is_transitioning()) {
-    lv_obj_invalidate(lv_scr_act());
-  }
+  lv_obj_invalidate(lv_scr_act());
   lv_timer_handler();
 #endif
 
