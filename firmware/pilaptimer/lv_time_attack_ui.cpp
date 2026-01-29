@@ -190,6 +190,10 @@ void screen_gesture_event(lv_event_t *e) {
   }
 }
 
+void tileview_scroll_event(lv_event_t *e) {
+  LV_UNUSED(e);
+}
+
 lv_obj_t *makeSpinboxRow(lv_obj_t *parent, const char *labelText,
                          lv_obj_t **minusBtn, lv_obj_t **spinbox, lv_obj_t **plusBtn) {
   lv_obj_t *row = lv_obj_create(parent);
