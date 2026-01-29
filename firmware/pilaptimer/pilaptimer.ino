@@ -333,6 +333,20 @@ enum class ActiveScreen {
   GForce
 };
 static ActiveScreen gActiveScreen = ActiveScreen::Main;
+
+static void ShowMainScreen() {
+  if (gActiveScreen == ActiveScreen::Main) return;
+  screen_gforce_hide();
+  lv_scr_load(lv_time_attack_ui_get_screen());
+  gActiveScreen = ActiveScreen::Main;
+}
+
+static void ShowGForceScreen() {
+  if (gActiveScreen == ActiveScreen::GForce) return;
+  screen_gforce_show();
+  lv_scr_load(screen_gforce_get_screen());
+  gActiveScreen = ActiveScreen::GForce;
+}
 #endif
 // Buttons (idle)
 static const Button BTN_DRIVER_MINUS = {UI_STEP_MINUS_X, UI_DRIVER_Y + UI_STEP_Y_OFFSET, UI_STEP_BTN, UI_STEP_BTN, "-"};
