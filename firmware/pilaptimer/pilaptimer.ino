@@ -108,8 +108,27 @@ static void BeepNow(uint16_t freq = 2600, uint16_t ms = 25) {
   analogWrite(BUZZER_PIN, 0);
 }
 
-static void BeepLap() {
-  BeepNow(2600, 25);
+static void BeepLap(bool bestLap) {
+  const uint16_t sustain = 70;
+  if (bestLap) {
+    for (uint8_t loop = 0; loop < 2; ++loop) {
+      BeepNow(880, sustain);  // A5
+      BeepNow(988, sustain);  // B5
+      BeepNow(1047, sustain); // C6
+      BeepNow(988, sustain);  // B5
+      BeepNow(1047, sustain); // C6
+      BeepNow(1175, sustain); // D6
+      BeepNow(1047, sustain); // C6
+      BeepNow(1175, sustain); // D6
+      BeepNow(1319, sustain); // E6
+      BeepNow(1175, sustain); // D6
+      BeepNow(1319, sustain); // E6
+      BeepNow(1319, sustain); // E6
+    }
+  } else {
+    BeepNow(392, 250); // G4
+    BeepNow(262, 500); // C4
+  }
 }
 
 static void BeepComplete() {
@@ -778,7 +797,8 @@ void loop() {
           gLastLapMs = irMs - gLastLapStartMs;
           gLastLapStartMs = irMs;
           gSessionMs = irMs - gStartMs;
-          if (gBestLapMs == 0 || gLastLapMs < gBestLapMs) {
+          const bool bestLap = (gBestLapMs == 0 || gLastLapMs < gBestLapMs);
+          if (bestLap) {
             gBestLapMs = gLastLapMs;
           }
           gDeltaMs = (int32_t)gLastLapMs - (int32_t)gBestLapMs;
@@ -786,7 +806,7 @@ void loop() {
           Serial.printf("LAP %u time=%lu ms\n", (unsigned)gLapCount, (unsigned long)gLastLapMs);
 
           if ((irMs - gLastBeepMs) >= BEEP_DEBOUNCE_MS) {
-            BeepLap();
+            BeepLap(bestLap);
             gLastBeepMs = irMs;
           }
 

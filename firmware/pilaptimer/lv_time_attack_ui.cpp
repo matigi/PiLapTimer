@@ -120,7 +120,7 @@ void onNewLap(const UiSnapshot &snapshot) {
 
   if (snapshot.bestLapMs == snapshot.lastLapMs && snapshot.bestLapMs > 0) {
     lv_obj_clear_flag(refs.bestIcon, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_align_to(refs.bestIcon, refs.bestLabel, LV_ALIGN_OUT_RIGHT_MID, 6, 0);
+    lv_obj_align_to(refs.bestIcon, refs.bestLabel, LV_ALIGN_OUT_RIGHT_MID, -10, 0);
     if (bestIconTimer) {
       lv_timer_reset(bestIconTimer);
       lv_timer_resume(bestIconTimer);
