@@ -279,6 +279,8 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_obj_set_style_bg_opa(refs.tileview, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(refs.tileview, 0, 0);
   lv_obj_set_scrollbar_mode(refs.tileview, LV_SCROLLBAR_MODE_OFF);
+  lv_obj_add_event_cb(refs.tileview, tileview_scroll_event, LV_EVENT_SCROLL_BEGIN, nullptr);
+  lv_obj_add_event_cb(refs.tileview, tileview_scroll_event, LV_EVENT_SCROLL_END, nullptr);
 
   refs.settingsTile = lv_tileview_add_tile(refs.tileview, 0, 0, LV_DIR_RIGHT);
   refs.raceTile = lv_tileview_add_tile(refs.tileview, 1, 0, LV_DIR_LEFT | LV_DIR_RIGHT);

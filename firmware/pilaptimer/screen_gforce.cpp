@@ -6,6 +6,7 @@
 #include <Arduino.h>
 
 #include "imu_qmi8658.h"
+#include "screen_nav.h"
 
 static lv_obj_t *gforceScreen = nullptr;
 
@@ -154,6 +155,9 @@ void reset_btn_event(lv_event_t *e) {
 
 void update_timer_cb(lv_timer_t *timer) {
   LV_UNUSED(timer);
+  if (screen_nav_is_transitioning()) {
+    return;
+  }
 
   float acc[3] = {0.0f, 0.0f, 0.0f};
   if (!imu_qmi8658_read_accel(acc[0], acc[1], acc[2])) {

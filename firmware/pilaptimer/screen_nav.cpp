@@ -20,4 +20,6 @@ void ShowGForceScreen() {
 #else
 void ShowMainScreen() {}
 void ShowGForceScreen() {}
+void screen_nav_set_transitioning(bool) {}
+bool screen_nav_is_transitioning() { return false; }
 #endif
