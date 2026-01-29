@@ -24,7 +24,6 @@
 #include "lv_port_disp.h"
 #include "lv_port_indev.h"
 #include "lv_time_attack_ui.h"
-#include "screen_gforce.h"
 #include "screen_nav.h"
 #endif
 
