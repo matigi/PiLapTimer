@@ -4,11 +4,17 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-01-29
+
 ### Added
-- Touch + beep recovery baseline with robust FT3168 reads and demo UI.
+- Distinct lap beep sequences for best laps versus normal laps without blocking timer updates.
+- IR lap gating with edge detection and a release window to prevent continuous-beam retriggers.
 
 ### Changed
-- Simplified firmware to focus on touch + buzzer bring-up.
+- Settings screen layout with larger labels/controls, inline +/- buttons, and stable sizing.
+- Main screen timing to show total session time and larger right-aligned lap info.
+- Reset interaction to trigger on tap (no hold requirement).
 
 ### Fixed
-- Hardened touch reads to avoid stuck-down states.
+- Removed spinbox cursor/selection highlight and cleaned value background styling.
+- Adjusted the BEST lap checkmark position to avoid overlapping the lap label.

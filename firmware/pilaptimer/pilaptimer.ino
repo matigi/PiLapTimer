@@ -48,6 +48,7 @@ static const uint8_t  BUZZER_PIN = 16;
 // IR lap trigger input
 static const uint8_t  IR_IN_PIN = 1; // GP1
 static const uint32_t LAP_LOCKOUT_MS = 1500;
+static const uint32_t IR_RELEASE_MS = 200;
 
 // Polling + state windowing
 static const uint16_t POLL_MS              = 10;
@@ -100,6 +101,52 @@ static const uint16_t UI_CENTER_BUTTON_W = 180;
 static const uint16_t UI_CENTER_BUTTON_X = (LOGICAL_W - UI_CENTER_BUTTON_W) / 2;
 
 // ----------------- Beep (no tone) -----------------
+struct BeepStep {
+  uint16_t freq;
+  uint16_t durationMs;
+};
+
+static const BeepStep kBestLapBeep[] = {
+  {392, 250},  // G4
+  {784, 500},  // G5
+};
+
+static const BeepStep kLapBeep[] = {
+  {392, 250},  // G4
+  {262, 500},  // C4
+};
+
+static const BeepStep* gBeepSeq = nullptr;
+static size_t gBeepSeqCount = 0;
+static size_t gBeepSeqIndex = 0;
+static uint32_t gBeepSeqStartMs = 0;
+static bool gBeepSeqActive = false;
+
+static void StartBeepSequence(const BeepStep* steps, size_t count) {
+  if (!steps || count == 0) return;
+  gBeepSeq = steps;
+  gBeepSeqCount = count;
+  gBeepSeqIndex = 0;
+  gBeepSeqStartMs = millis();
+  gBeepSeqActive = true;
+  analogWriteFreq(gBeepSeq[0].freq);
+  analogWrite(BUZZER_PIN, 128);
+}
+
+static void UpdateBeepSequence(uint32_t now) {
+  if (!gBeepSeqActive || !gBeepSeq) return;
+  if ((now - gBeepSeqStartMs) < gBeepSeq[gBeepSeqIndex].durationMs) return;
+  gBeepSeqIndex++;
+  if (gBeepSeqIndex >= gBeepSeqCount) {
+    analogWrite(BUZZER_PIN, 0);
+    gBeepSeqActive = false;
+    return;
+  }
+  gBeepSeqStartMs = now;
+  analogWriteFreq(gBeepSeq[gBeepSeqIndex].freq);
+  analogWrite(BUZZER_PIN, 128);
+}
+
 static void BeepNow(uint16_t freq = 2600, uint16_t ms = 25) {
   analogWriteFreq(freq);
   analogWrite(BUZZER_PIN, 128);
@@ -107,8 +154,10 @@ static void BeepNow(uint16_t freq = 2600, uint16_t ms = 25) {
   analogWrite(BUZZER_PIN, 0);
 }
 
-static void BeepLap() {
-  BeepNow(2600, 25);
+static void BeepLap(bool bestLap) {
+  StartBeepSequence(bestLap ? kBestLapBeep : kLapBeep,
+                    bestLap ? (sizeof(kBestLapBeep) / sizeof(kBestLapBeep[0]))
+                            : (sizeof(kLapBeep) / sizeof(kLapBeep[0])));
 }
 
 static void BeepComplete() {
@@ -164,6 +213,9 @@ static void RotateTouch(uint16_t nx, uint16_t ny, uint16_t &rx, uint16_t &ry) {
 
 volatile bool gIrSeen = false;
 volatile uint32_t gIrSeenMs = 0;
+static bool gIrActive = false;
+static uint32_t gIrReleaseStartMs = 0;
+static uint32_t gIrLastReleaseMs = 0;
 
 void IRAM_ATTR IrIsr() {
   gIrSeenMs = (uint32_t)millis();
@@ -704,6 +756,7 @@ void loop() {
 #else
   uint32_t now = millis();
 #endif
+  UpdateBeepSequence(now);
 
   // Robust touch state
 #if !USE_LVGL_UI
@@ -749,45 +802,65 @@ void loop() {
     return;
 #endif
   }
-  bool irTriggered = false;
-  uint32_t irMs = 0;
+  uint32_t irMs = now;
+  bool signalActive = (digitalRead(IR_IN_PIN) == LOW);
   if (gIrSeen) {
     noInterrupts();
-    irTriggered = gIrSeen;
     irMs = gIrSeenMs;
     gIrSeen = false;
     interrupts();
+    signalActive = true;
   }
 
-  if (irTriggered && (irMs - gLastLapTriggerMs) >= LAP_LOCKOUT_MS) {
-    gLastLapTriggerMs = irMs;
-    if (gState == UI_ARMED) {
-      Serial.println("IR: start run");
-      StartRunning(irMs);
-    } else if (gState == UI_RUNNING) {
-      gLapCount++;
-      gLastLapMs = irMs - gLastLapStartMs;
-      gLastLapStartMs = irMs;
-      gSessionMs = irMs - gStartMs;
-      if (gBestLapMs == 0 || gLastLapMs < gBestLapMs) {
-        gBestLapMs = gLastLapMs;
-      }
-      gDeltaMs = (int32_t)gLastLapMs - (int32_t)gBestLapMs;
+  if (signalActive) {
+    gIrReleaseStartMs = 0;
+    if (!gIrActive) {
+      // Rising edge: only count once per IR active window, with lockout and release guard.
+      if ((now - gLastLapTriggerMs) >= LAP_LOCKOUT_MS &&
+          (now - gIrLastReleaseMs) >= IR_RELEASE_MS) {
+        gLastLapTriggerMs = now;
+        if (gState == UI_ARMED) {
+          Serial.println("IR: start run");
+          StartRunning(irMs);
+        } else if (gState == UI_RUNNING) {
+          gLapCount++;
+          gLastLapMs = irMs - gLastLapStartMs;
+          gLastLapStartMs = irMs;
+          gSessionMs = irMs - gStartMs;
+          const bool bestLap = (gBestLapMs == 0 || gLastLapMs < gBestLapMs);
+          if (bestLap) {
+            gBestLapMs = gLastLapMs;
+          }
+          gDeltaMs = (int32_t)gLastLapMs - (int32_t)gBestLapMs;
 
-      Serial.printf("LAP %u time=%lu ms\n", (unsigned)gLapCount, (unsigned long)gLastLapMs);
+          Serial.printf("LAP %u time=%lu ms\n", (unsigned)gLapCount, (unsigned long)gLastLapMs);
 
-      if ((irMs - gLastBeepMs) >= BEEP_DEBOUNCE_MS) {
-        BeepLap();
-        gLastBeepMs = irMs;
-      }
+          if ((irMs - gLastBeepMs) >= BEEP_DEBOUNCE_MS) {
+            BeepLap(bestLap);
+            gLastBeepMs = irMs;
+          }
 
-      if (gLapCount >= gSelectedLaps) {
-        BeepComplete();
-        FinishRun(irMs);
-      } else {
-        RenderState();
+          if (gLapCount >= gSelectedLaps) {
+            BeepComplete();
+            FinishRun(irMs);
+          } else {
+            RenderState();
+          }
+        }
       }
+      gIrActive = true;
     }
+  } else if (gIrActive) {
+    if (gIrReleaseStartMs == 0) {
+      gIrReleaseStartMs = now;
+    }
+    if ((now - gIrReleaseStartMs) >= IR_RELEASE_MS) {
+      gIrActive = false;
+      gIrLastReleaseMs = now;
+      gIrReleaseStartMs = 0;
+    }
+  } else {
+    gIrReleaseStartMs = 0;
   }
 
   if (gState == UI_RUNNING) {
