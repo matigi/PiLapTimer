@@ -20,6 +20,8 @@
 #define LV_USE_ANIMATION 1
 #define LV_USE_FLEX 1
 #define LV_USE_GRID 1
+#define LV_USE_GESTURE 1
+#define LV_USE_LINE 1
 
 #define LV_FONT_MONTSERRAT_20 1
 #define LV_FONT_MONTSERRAT_24 1
