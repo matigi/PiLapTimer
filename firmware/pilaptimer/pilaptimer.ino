@@ -1,3 +1,5 @@
+#include "pilaptimer_forward.h"
+
 #include <Arduino.h>
 #include <string.h>
 
@@ -5,6 +7,7 @@
 #include "AMOLED_1in64.h"
 #include "qspi_pio.h"
 #include "QMI8658.h"
+#include "imu_qmi8658.h"
 #include "FT3168.h"
 #include "GUI_Paint.h"
 #include "fonts.h"
@@ -21,6 +24,7 @@
 #include "lv_port_disp.h"
 #include "lv_port_indev.h"
 #include "lv_time_attack_ui.h"
+#include "screen_gforce.h"
 #endif
 
 #ifndef WHITE
@@ -58,6 +62,28 @@ static const uint16_t UI_REFRESH_MS        = 250;
 static const uint16_t LVGL_UI_REFRESH_MS   = 100;
 
 static UWORD* gFrame = nullptr;
+
+#if USE_LVGL_UI
+enum class ActiveScreen {
+  Main,
+  GForce
+};
+static ActiveScreen gActiveScreen = ActiveScreen::Main;
+
+static void ShowMainScreen() {
+  if (gActiveScreen == ActiveScreen::Main) return;
+  screen_gforce_hide();
+  lv_scr_load(lv_time_attack_ui_get_screen());
+  gActiveScreen = ActiveScreen::Main;
+}
+
+static void ShowGForceScreen() {
+  if (gActiveScreen == ActiveScreen::GForce) return;
+  screen_gforce_show();
+  lv_scr_load(screen_gforce_get_screen());
+  gActiveScreen = ActiveScreen::GForce;
+}
+#endif
 
 // ----------------- UI helpers -----------------
 struct Button {
@@ -702,7 +728,9 @@ void setup() {
 #endif
 
   Serial.println("I2C bring-up via QMI8658_init()...");
-  QMI8658_init();
+  if (!imu_qmi8658_init()) {
+    Serial.println("WARN: QMI8658 init failed");
+  }
   delay(50);
 
   Serial.println("TOUCH: FT3168_Init(FT3168_Gesture_Mode)...");
@@ -732,6 +760,8 @@ void setup() {
                          HandleDriverNext,
                          HandleLapsPrev,
                          HandleLapsNext);
+  lv_time_attack_ui_set_swipe_down_handler(ShowGForceScreen);
+  screen_gforce_init(ShowMainScreen);
   lv_obj_invalidate(lv_scr_act());
   lv_timer_handler();
 #endif
