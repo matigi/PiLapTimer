@@ -6,7 +6,7 @@
 
 static lv_disp_draw_buf_t s_draw_buf;
 
-static constexpr uint32_t kBufLines = 120;
+static constexpr uint32_t kBufLines = 80;
 static constexpr uint32_t kPostFlushDelayMs = 1;
 static constexpr bool kSwapBytesInFlush = false;
 
