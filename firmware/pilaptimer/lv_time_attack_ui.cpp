@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "screen_gforce.h"
+
 namespace {
 constexpr uint8_t kMaxDrivers = 10;
 constexpr uint8_t kMaxLaps = 20;
@@ -44,7 +46,7 @@ void (*driverPrevHandler)() = nullptr;
 void (*driverNextHandler)() = nullptr;
 void (*lapsPrevHandler)() = nullptr;
 void (*lapsNextHandler)() = nullptr;
-nav_handler_t swipeDownHandler = nullptr;
+nav_handler_t swipeLeftHandler = nullptr;
 
 lv_style_t bestRowStyle;
 
@@ -183,8 +185,8 @@ void screen_gesture_event(lv_event_t *e) {
   lv_indev_t *indev = lv_indev_get_act();
   if (!indev) return;
   lv_dir_t dir = lv_indev_get_gesture_dir(indev);
-  if (dir == LV_DIR_BOTTOM && swipeDownHandler) {
-    swipeDownHandler();
+  if (dir == LV_DIR_LEFT && swipeLeftHandler) {
+    swipeLeftHandler();
   }
 }
 
@@ -271,7 +273,6 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_obj_set_style_bg_color(refs.screen, lv_color_hex(0x0b0f14), 0);
   lv_obj_set_style_bg_opa(refs.screen, LV_OPA_COVER, 0);
   lv_obj_clear_flag(refs.screen, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_add_event_cb(refs.screen, screen_gesture_event, LV_EVENT_GESTURE, nullptr);
 
   refs.tileview = lv_tileview_create(refs.screen);
   lv_obj_set_size(refs.tileview, lv_disp_get_hor_res(nullptr), lv_disp_get_ver_res(nullptr));
@@ -285,6 +286,9 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   refs.reviewTile = lv_tileview_add_tile(refs.tileview, 3, 0, LV_DIR_LEFT);
 
   lv_obj_set_tile(refs.tileview, refs.raceTile, LV_ANIM_OFF);
+  // Swipe left on the main timer tile to reach G-Force.
+  lv_obj_add_event_cb(refs.raceTile, screen_gesture_event, LV_EVENT_GESTURE, nullptr);
+  screen_gforce_attach(refs.gforceTile);
 
   // Race tile
   refs.bestLabel = lv_label_create(refs.raceTile);
@@ -449,12 +453,22 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_scr_load(refs.screen);
 }
 
-void lv_time_attack_ui_set_swipe_down_handler(nav_handler_t cb) {
-  swipeDownHandler = cb;
+void lv_time_attack_ui_set_swipe_left_handler(nav_handler_t cb) {
+  swipeLeftHandler = cb;
 }
 
 lv_obj_t *lv_time_attack_ui_get_screen() {
   return refs.screen;
+}
+
+void lv_time_attack_ui_show_race_tile() {
+  if (!refs.tileview || !refs.raceTile) return;
+  lv_obj_set_tile(refs.tileview, refs.raceTile, LV_ANIM_ON);
+}
+
+void lv_time_attack_ui_show_gforce_tile() {
+  if (!refs.tileview || !refs.gforceTile) return;
+  lv_obj_set_tile(refs.tileview, refs.gforceTile, LV_ANIM_ON);
 }
 
 void lv_time_attack_ui_update(const UiSnapshot &snapshot) {
