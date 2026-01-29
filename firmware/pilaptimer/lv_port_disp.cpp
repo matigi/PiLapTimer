@@ -6,14 +6,13 @@
 
 static lv_disp_draw_buf_t s_draw_buf;
 
-static constexpr uint32_t kBufLines = 160;
+static constexpr uint32_t kBufLines = 40;
 static constexpr uint32_t kPostFlushDelayMs = 1;
 static constexpr bool kSwapBytesInFlush = false;
 
 static_assert(sizeof(lv_color_t) == 2, "LVGL must be configured for RGB565");
 
 static lv_color_t s_buf1[LVGL_LOGICAL_W * kBufLines];
-static lv_color_t s_buf2[LVGL_LOGICAL_W * kBufLines];
 static uint16_t s_tmp565[LVGL_LOGICAL_W * kBufLines];
 
 static inline uint16_t bswap16(uint16_t v) { return (uint16_t)((v << 8) | (v >> 8)); }
@@ -92,7 +91,7 @@ static void lv_port_disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, l
 }
 
 void lv_port_disp_init() {
-  lv_disp_draw_buf_init(&s_draw_buf, s_buf1, s_buf2, LVGL_LOGICAL_W * kBufLines);
+  lv_disp_draw_buf_init(&s_draw_buf, s_buf1, nullptr, LVGL_LOGICAL_W * kBufLines);
 
   static lv_disp_drv_t disp_drv;
   lv_disp_drv_init(&disp_drv);
