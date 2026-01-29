@@ -25,6 +25,7 @@
 #include "lv_port_indev.h"
 #include "lv_time_attack_ui.h"
 #include "screen_gforce.h"
+#include "screen_nav.h"
 #endif
 
 #ifndef WHITE
@@ -63,27 +64,6 @@ static const uint16_t LVGL_UI_REFRESH_MS   = 100;
 
 static UWORD* gFrame = nullptr;
 
-#if USE_LVGL_UI
-enum class ActiveScreen {
-  Main,
-  GForce
-};
-static ActiveScreen gActiveScreen = ActiveScreen::Main;
-
-static void ShowMainScreen() {
-  if (gActiveScreen == ActiveScreen::Main) return;
-  screen_gforce_hide();
-  lv_scr_load(lv_time_attack_ui_get_screen());
-  gActiveScreen = ActiveScreen::Main;
-}
-
-static void ShowGForceScreen() {
-  if (gActiveScreen == ActiveScreen::GForce) return;
-  screen_gforce_show();
-  lv_scr_load(screen_gforce_get_screen());
-  gActiveScreen = ActiveScreen::GForce;
-}
-#endif
 
 // ----------------- UI helpers -----------------
 struct Button {
@@ -191,22 +171,6 @@ static void BeepComplete() {
   delay(40);
   BeepNow(2800, 60);
 }
-
-#if USE_LVGL_UI
-static void ShowMainScreen() {
-  if (gActiveScreen == ActiveScreen::Main) return;
-  screen_gforce_hide();
-  lv_scr_load(lv_time_attack_ui_get_screen());
-  gActiveScreen = ActiveScreen::Main;
-}
-
-static void ShowGForceScreen() {
-  if (gActiveScreen == ActiveScreen::GForce) return;
-  screen_gforce_show();
-  lv_scr_load(screen_gforce_get_screen());
-  gActiveScreen = ActiveScreen::GForce;
-}
-#endif
 
 // ----------------- Touch helpers -----------------
 static inline bool TouchLooksInvalid(uint16_t x, uint16_t y) {
@@ -352,25 +316,6 @@ static uint32_t gLastBeepMs = 0;
 #if USE_LVGL_UI
 static bool gUiDirty = true;
 static uint32_t gLastLvglUiMs = 0;
-enum class ActiveScreen {
-  Main,
-  GForce
-};
-static ActiveScreen gActiveScreen = ActiveScreen::Main;
-
-static void ShowMainScreen() {
-  if (gActiveScreen == ActiveScreen::Main) return;
-  screen_gforce_hide();
-  lv_scr_load(lv_time_attack_ui_get_screen());
-  gActiveScreen = ActiveScreen::Main;
-}
-
-static void ShowGForceScreen() {
-  if (gActiveScreen == ActiveScreen::GForce) return;
-  screen_gforce_show();
-  lv_scr_load(screen_gforce_get_screen());
-  gActiveScreen = ActiveScreen::GForce;
-}
 #endif
 // Buttons (idle)
 static const Button BTN_DRIVER_MINUS = {UI_STEP_MINUS_X, UI_DRIVER_Y + UI_STEP_Y_OFFSET, UI_STEP_BTN, UI_STEP_BTN, "-"};
@@ -796,7 +741,8 @@ void setup() {
                          HandleLapsPrev,
                          HandleLapsNext);
   lv_time_attack_ui_set_swipe_down_handler(ShowGForceScreen);
-  screen_gforce_init(ShowMainScreen);
+  screen_gforce_init();
+  screen_gforce_get_screen();
   lv_obj_invalidate(lv_scr_act());
   lv_timer_handler();
 #endif

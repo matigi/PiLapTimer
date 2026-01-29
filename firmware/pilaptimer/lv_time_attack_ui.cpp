@@ -3,8 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "screen_gforce.h"
-
 namespace {
 constexpr uint8_t kMaxDrivers = 10;
 constexpr uint8_t kMaxLaps = 20;
@@ -46,7 +44,7 @@ void (*driverPrevHandler)() = nullptr;
 void (*driverNextHandler)() = nullptr;
 void (*lapsPrevHandler)() = nullptr;
 void (*lapsNextHandler)() = nullptr;
-void (*swipeDownHandler)() = nullptr;
+nav_handler_t swipeDownHandler = nullptr;
 
 lv_style_t bestRowStyle;
 
@@ -386,9 +384,6 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_obj_set_style_transform_pivot_x(refs.resetBtn, 100, 0);
   lv_obj_set_style_transform_pivot_y(refs.resetBtn, 32, 0);
 
-  // G-Force tile
-  screen_gforce_init(refs.gforceTile);
-
   // Reporting tile
   lv_obj_t *reviewContainer = lv_obj_create(refs.reviewTile);
   lv_obj_set_size(reviewContainer, lv_disp_get_hor_res(nullptr), lv_disp_get_ver_res(nullptr));
@@ -452,6 +447,10 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_timer_pause(bestIconTimer);
 
   lv_scr_load(refs.screen);
+}
+
+void lv_time_attack_ui_set_swipe_down_handler(nav_handler_t cb) {
+  swipeDownHandler = cb;
 }
 
 lv_obj_t *lv_time_attack_ui_get_screen() {
