@@ -168,6 +168,22 @@ static void BeepComplete() {
   BeepNow(2800, 60);
 }
 
+#if USE_LVGL_UI
+static void ShowMainScreen() {
+  if (gActiveScreen == ActiveScreen::Main) return;
+  screen_gforce_hide();
+  lv_scr_load(lv_time_attack_ui_get_screen());
+  gActiveScreen = ActiveScreen::Main;
+}
+
+static void ShowGForceScreen() {
+  if (gActiveScreen == ActiveScreen::GForce) return;
+  screen_gforce_show();
+  lv_scr_load(screen_gforce_get_screen());
+  gActiveScreen = ActiveScreen::GForce;
+}
+#endif
+
 // ----------------- Touch helpers -----------------
 static inline bool TouchLooksInvalid(uint16_t x, uint16_t y) {
   if (x == 4095 && y == 4095) return true;
