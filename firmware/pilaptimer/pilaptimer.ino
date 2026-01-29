@@ -101,6 +101,52 @@ static const uint16_t UI_CENTER_BUTTON_W = 180;
 static const uint16_t UI_CENTER_BUTTON_X = (LOGICAL_W - UI_CENTER_BUTTON_W) / 2;
 
 // ----------------- Beep (no tone) -----------------
+struct BeepStep {
+  uint16_t freq;
+  uint16_t durationMs;
+};
+
+static const BeepStep kBestLapBeep[] = {
+  {392, 250},  // G4
+  {784, 500},  // G5
+};
+
+static const BeepStep kLapBeep[] = {
+  {392, 250},  // G4
+  {262, 500},  // C4
+};
+
+static const BeepStep* gBeepSeq = nullptr;
+static size_t gBeepSeqCount = 0;
+static size_t gBeepSeqIndex = 0;
+static uint32_t gBeepSeqStartMs = 0;
+static bool gBeepSeqActive = false;
+
+static void StartBeepSequence(const BeepStep* steps, size_t count) {
+  if (!steps || count == 0) return;
+  gBeepSeq = steps;
+  gBeepSeqCount = count;
+  gBeepSeqIndex = 0;
+  gBeepSeqStartMs = millis();
+  gBeepSeqActive = true;
+  analogWriteFreq(gBeepSeq[0].freq);
+  analogWrite(BUZZER_PIN, 128);
+}
+
+static void UpdateBeepSequence(uint32_t now) {
+  if (!gBeepSeqActive || !gBeepSeq) return;
+  if ((now - gBeepSeqStartMs) < gBeepSeq[gBeepSeqIndex].durationMs) return;
+  gBeepSeqIndex++;
+  if (gBeepSeqIndex >= gBeepSeqCount) {
+    analogWrite(BUZZER_PIN, 0);
+    gBeepSeqActive = false;
+    return;
+  }
+  gBeepSeqStartMs = now;
+  analogWriteFreq(gBeepSeq[gBeepSeqIndex].freq);
+  analogWrite(BUZZER_PIN, 128);
+}
+
 static void BeepNow(uint16_t freq = 2600, uint16_t ms = 25) {
   analogWriteFreq(freq);
   analogWrite(BUZZER_PIN, 128);
@@ -109,26 +155,9 @@ static void BeepNow(uint16_t freq = 2600, uint16_t ms = 25) {
 }
 
 static void BeepLap(bool bestLap) {
-  const uint16_t sustain = 70;
-  if (bestLap) {
-    for (uint8_t loop = 0; loop < 2; ++loop) {
-      BeepNow(880, sustain);  // A5
-      BeepNow(988, sustain);  // B5
-      BeepNow(1047, sustain); // C6
-      BeepNow(988, sustain);  // B5
-      BeepNow(1047, sustain); // C6
-      BeepNow(1175, sustain); // D6
-      BeepNow(1047, sustain); // C6
-      BeepNow(1175, sustain); // D6
-      BeepNow(1319, sustain); // E6
-      BeepNow(1175, sustain); // D6
-      BeepNow(1319, sustain); // E6
-      BeepNow(1319, sustain); // E6
-    }
-  } else {
-    BeepNow(392, 250); // G4
-    BeepNow(262, 500); // C4
-  }
+  StartBeepSequence(bestLap ? kBestLapBeep : kLapBeep,
+                    bestLap ? (sizeof(kBestLapBeep) / sizeof(kBestLapBeep[0]))
+                            : (sizeof(kLapBeep) / sizeof(kLapBeep[0])));
 }
 
 static void BeepComplete() {
@@ -727,6 +756,7 @@ void loop() {
 #else
   uint32_t now = millis();
 #endif
+  UpdateBeepSequence(now);
 
   // Robust touch state
 #if !USE_LVGL_UI
