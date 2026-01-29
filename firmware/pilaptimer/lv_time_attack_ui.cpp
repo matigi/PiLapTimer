@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "screen_gforce.h"
+
 namespace {
 constexpr uint8_t kMaxDrivers = 10;
 constexpr uint8_t kMaxLaps = 20;
@@ -13,6 +15,7 @@ struct UiRefs {
   lv_obj_t *tileview;
   lv_obj_t *raceTile;
   lv_obj_t *reviewTile;
+  lv_obj_t *gforceTile;
   lv_obj_t *settingsTile;
 
   lv_obj_t *bestLabel;
@@ -280,7 +283,8 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
 
   refs.settingsTile = lv_tileview_add_tile(refs.tileview, 0, 0, LV_DIR_RIGHT);
   refs.raceTile = lv_tileview_add_tile(refs.tileview, 1, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
-  refs.reviewTile = lv_tileview_add_tile(refs.tileview, 2, 0, LV_DIR_LEFT);
+  refs.gforceTile = lv_tileview_add_tile(refs.tileview, 2, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
+  refs.reviewTile = lv_tileview_add_tile(refs.tileview, 3, 0, LV_DIR_LEFT);
 
   lv_obj_set_tile(refs.tileview, refs.raceTile, LV_ANIM_OFF);
 
@@ -382,6 +386,9 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_obj_set_style_transform_pivot_x(refs.resetBtn, 100, 0);
   lv_obj_set_style_transform_pivot_y(refs.resetBtn, 32, 0);
 
+  // G-Force tile
+  screen_gforce_init(refs.gforceTile);
+
   // Reporting tile
   lv_obj_t *reviewContainer = lv_obj_create(refs.reviewTile);
   lv_obj_set_size(reviewContainer, lv_disp_get_hor_res(nullptr), lv_disp_get_ver_res(nullptr));
@@ -445,10 +452,6 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_timer_pause(bestIconTimer);
 
   lv_scr_load(refs.screen);
-}
-
-void lv_time_attack_ui_set_swipe_down_handler(void (*swipeDownCb)()) {
-  swipeDownHandler = swipeDownCb;
 }
 
 lv_obj_t *lv_time_attack_ui_get_screen() {

@@ -8,7 +8,6 @@
 #include "qspi_pio.h"
 #include "QMI8658.h"
 #include "imu_qmi8658.h"
-#include "screen_nav.h"
 #include "FT3168.h"
 #include "GUI_Paint.h"
 #include "fonts.h"

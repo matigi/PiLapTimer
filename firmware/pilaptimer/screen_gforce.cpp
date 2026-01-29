@@ -6,8 +6,6 @@
 #include <Arduino.h>
 
 #include "imu_qmi8658.h"
-#include "lv_port_disp.h"
-
 namespace {
 constexpr float kGravityMs2 = 9.80665f;
 constexpr uint32_t kCalibrationMs = 800;
@@ -31,7 +29,7 @@ constexpr float kAxisLongSign = 1.0f;
 constexpr float kAxisVertSign = 1.0f;
 
 struct GForceRefs {
-  lv_obj_t *screen;
+  lv_obj_t *root;
   lv_obj_t *target;
   lv_obj_t *ball;
   lv_obj_t *labelTop;
@@ -58,8 +56,6 @@ struct GForceState {
 
 GForceRefs refs{};
 GForceState state{};
-void (*exitHandler)() = nullptr;
-
 lv_timer_t *updateTimer = nullptr;
 
 void reset_peaks() {
@@ -69,9 +65,10 @@ void reset_peaks() {
   state.peakRight = 0.0f;
   state.filtered[0] = 0.0f;
   state.filtered[1] = 0.0f;
-  lv_obj_set_pos(refs.ball,
-                 (LVGL_LOGICAL_W - kBallSize) / 2,
-                 (LVGL_LOGICAL_H - kBallSize) / 2);
+  if (!refs.root) return;
+  int32_t centerX = lv_obj_get_width(refs.root) / 2;
+  int32_t centerY = lv_obj_get_height(refs.root) / 2;
+  lv_obj_set_pos(refs.ball, centerX - (kBallSize / 2), centerY - (kBallSize / 2));
 }
 
 void start_calibration() {
@@ -94,8 +91,9 @@ float clampf(float v, float minv, float maxv) {
 }
 
 void update_ball(float gx, float gy) {
-  int32_t centerX = LVGL_LOGICAL_W / 2;
-  int32_t centerY = LVGL_LOGICAL_H / 2;
+  if (!refs.root) return;
+  int32_t centerX = lv_obj_get_width(refs.root) / 2;
+  int32_t centerY = lv_obj_get_height(refs.root) / 2;
   int32_t maxRadius = (kCircleSize / 2) - (kBallSize / 2) - 4;
 
   float x = gx * maxRadius;
@@ -148,16 +146,6 @@ void update_peaks(float gLat, float gLong) {
 void reset_btn_event(lv_event_t *e) {
   if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
     reset_peaks();
-  }
-}
-
-void screen_gesture_event(lv_event_t *e) {
-  if (lv_event_get_code(e) != LV_EVENT_GESTURE) return;
-  lv_indev_t *indev = lv_indev_get_act();
-  if (!indev) return;
-  lv_dir_t dir = lv_indev_get_gesture_dir(indev);
-  if (dir == LV_DIR_TOP && exitHandler) {
-    exitHandler();
   }
 }
 
@@ -230,8 +218,8 @@ lv_obj_t *create_tick(lv_obj_t *parent, int32_t x1, int32_t y1, int32_t x2, int3
 }
 
 void build_ticks(lv_obj_t *parent) {
-  int32_t centerX = LVGL_LOGICAL_W / 2;
-  int32_t centerY = LVGL_LOGICAL_H / 2;
+  int32_t centerX = lv_obj_get_width(parent) / 2;
+  int32_t centerY = lv_obj_get_height(parent) / 2;
   int32_t radius = kCircleSize / 2;
 
   create_tick(parent, centerX - kTickLength, centerY, centerX + kTickLength, centerY, 2);
@@ -252,16 +240,13 @@ void build_ticks(lv_obj_t *parent) {
 
 }  // namespace
 
-void screen_gforce_init(void (*exitCb)()) {
-  exitHandler = exitCb;
+void screen_gforce_init(lv_obj_t *parent) {
+  refs.root = parent ? parent : lv_obj_create(nullptr);
+  lv_obj_set_style_bg_color(refs.root, lv_color_hex(0x0b0f14), 0);
+  lv_obj_set_style_bg_opa(refs.root, LV_OPA_COVER, 0);
+  lv_obj_clear_flag(refs.root, LV_OBJ_FLAG_SCROLLABLE);
 
-  refs.screen = lv_obj_create(nullptr);
-  lv_obj_set_style_bg_color(refs.screen, lv_color_hex(0x0b0f14), 0);
-  lv_obj_set_style_bg_opa(refs.screen, LV_OPA_COVER, 0);
-  lv_obj_clear_flag(refs.screen, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_add_event_cb(refs.screen, screen_gesture_event, LV_EVENT_GESTURE, nullptr);
-
-  refs.target = lv_obj_create(refs.screen);
+  refs.target = lv_obj_create(refs.root);
   lv_obj_set_size(refs.target, kCircleSize, kCircleSize);
   lv_obj_set_style_radius(refs.target, LV_RADIUS_CIRCLE, 0);
   lv_obj_set_style_bg_opa(refs.target, LV_OPA_TRANSP, 0);
@@ -270,9 +255,9 @@ void screen_gforce_init(void (*exitCb)()) {
   lv_obj_clear_flag(refs.target, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_center(refs.target);
 
-  build_ticks(refs.screen);
+  build_ticks(refs.root);
 
-  refs.ball = lv_obj_create(refs.screen);
+  refs.ball = lv_obj_create(refs.root);
   lv_obj_set_size(refs.ball, kBallSize, kBallSize);
   lv_obj_set_style_radius(refs.ball, LV_RADIUS_CIRCLE, 0);
   lv_obj_set_style_bg_color(refs.ball, lv_color_hex(0xff5a3d), 0);
@@ -280,33 +265,33 @@ void screen_gforce_init(void (*exitCb)()) {
   lv_obj_set_style_border_width(refs.ball, 0, 0);
   lv_obj_clear_flag(refs.ball, LV_OBJ_FLAG_CLICKABLE);
 
-  refs.labelTop = lv_label_create(refs.screen);
+  refs.labelTop = lv_label_create(refs.root);
   lv_obj_set_style_text_font(refs.labelTop, &lv_font_montserrat_32, 0);
   lv_obj_set_style_text_color(refs.labelTop, lv_color_hex(0xf5f8ff), 0);
   lv_obj_align(refs.labelTop, LV_ALIGN_TOP_MID, 0, 18);
 
-  refs.labelBottom = lv_label_create(refs.screen);
+  refs.labelBottom = lv_label_create(refs.root);
   lv_obj_set_style_text_font(refs.labelBottom, &lv_font_montserrat_32, 0);
   lv_obj_set_style_text_color(refs.labelBottom, lv_color_hex(0xf5f8ff), 0);
   lv_obj_align(refs.labelBottom, LV_ALIGN_BOTTOM_MID, 0, -18);
 
-  refs.labelLeft = lv_label_create(refs.screen);
+  refs.labelLeft = lv_label_create(refs.root);
   lv_obj_set_style_text_font(refs.labelLeft, &lv_font_montserrat_24, 0);
   lv_obj_set_style_text_color(refs.labelLeft, lv_color_hex(0xf5f8ff), 0);
   lv_obj_align(refs.labelLeft, LV_ALIGN_LEFT_MID, 10, -10);
 
-  refs.labelRight = lv_label_create(refs.screen);
+  refs.labelRight = lv_label_create(refs.root);
   lv_obj_set_style_text_font(refs.labelRight, &lv_font_montserrat_24, 0);
   lv_obj_set_style_text_color(refs.labelRight, lv_color_hex(0xf5f8ff), 0);
   lv_obj_align(refs.labelRight, LV_ALIGN_RIGHT_MID, -10, -10);
 
-  refs.labelMax = lv_label_create(refs.screen);
+  refs.labelMax = lv_label_create(refs.root);
   lv_label_set_text(refs.labelMax, "Max");
   lv_obj_set_style_text_font(refs.labelMax, &lv_font_montserrat_20, 0);
   lv_obj_set_style_text_color(refs.labelMax, lv_color_hex(0x9aa7b7), 0);
   lv_obj_align(refs.labelMax, LV_ALIGN_BOTTOM_LEFT, 18, -24);
 
-  refs.resetBtn = lv_btn_create(refs.screen);
+  refs.resetBtn = lv_btn_create(refs.root);
   lv_obj_set_size(refs.resetBtn, 120, 34);
   lv_obj_set_style_radius(refs.resetBtn, 12, 0);
   lv_obj_set_style_bg_color(refs.resetBtn, lv_color_hex(0x1c2633), 0);
@@ -323,23 +308,8 @@ void screen_gforce_init(void (*exitCb)()) {
   lv_obj_center(refs.resetLabel);
 
   updateTimer = lv_timer_create(update_timer_cb, kUpdateMs, nullptr);
-  lv_timer_pause(updateTimer);
 
   start_calibration();
   update_labels(0.0f, 0.0f, 0.0f, 0.0f);
   update_ball(0.0f, 0.0f);
-}
-
-void screen_gforce_show() {
-  if (!refs.screen) return;
-  start_calibration();
-  if (updateTimer) lv_timer_resume(updateTimer);
-}
-
-void screen_gforce_hide() {
-  if (updateTimer) lv_timer_pause(updateTimer);
-}
-
-lv_obj_t *screen_gforce_get_screen() {
-  return refs.screen;
 }
