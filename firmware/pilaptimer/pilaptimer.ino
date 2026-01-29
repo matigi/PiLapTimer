@@ -5,6 +5,7 @@
 #include "AMOLED_1in64.h"
 #include "qspi_pio.h"
 #include "QMI8658.h"
+#include "imu_qmi8658.h"
 #include "FT3168.h"
 #include "GUI_Paint.h"
 #include "fonts.h"
@@ -21,6 +22,7 @@
 #include "lv_port_disp.h"
 #include "lv_port_indev.h"
 #include "lv_time_attack_ui.h"
+#include "screen_gforce.h"
 #endif
 
 #ifndef WHITE
@@ -166,6 +168,22 @@ static void BeepComplete() {
   BeepNow(2800, 60);
 }
 
+#if USE_LVGL_UI
+static void ShowMainScreen() {
+  if (gActiveScreen == ActiveScreen::Main) return;
+  screen_gforce_hide();
+  lv_scr_load(lv_time_attack_ui_get_screen());
+  gActiveScreen = ActiveScreen::Main;
+}
+
+static void ShowGForceScreen() {
+  if (gActiveScreen == ActiveScreen::GForce) return;
+  screen_gforce_show();
+  lv_scr_load(screen_gforce_get_screen());
+  gActiveScreen = ActiveScreen::GForce;
+}
+#endif
+
 // ----------------- Touch helpers -----------------
 static inline bool TouchLooksInvalid(uint16_t x, uint16_t y) {
   if (x == 4095 && y == 4095) return true;
@@ -310,6 +328,11 @@ static uint32_t gLastBeepMs = 0;
 #if USE_LVGL_UI
 static bool gUiDirty = true;
 static uint32_t gLastLvglUiMs = 0;
+enum class ActiveScreen {
+  Main,
+  GForce
+};
+static ActiveScreen gActiveScreen = ActiveScreen::Main;
 #endif
 // Buttons (idle)
 static const Button BTN_DRIVER_MINUS = {UI_STEP_MINUS_X, UI_DRIVER_Y + UI_STEP_Y_OFFSET, UI_STEP_BTN, UI_STEP_BTN, "-"};
@@ -702,7 +725,9 @@ void setup() {
 #endif
 
   Serial.println("I2C bring-up via QMI8658_init()...");
-  QMI8658_init();
+  if (!imu_qmi8658_init()) {
+    Serial.println("WARN: QMI8658 init failed");
+  }
   delay(50);
 
   Serial.println("TOUCH: FT3168_Init(FT3168_Gesture_Mode)...");
@@ -732,6 +757,8 @@ void setup() {
                          HandleDriverNext,
                          HandleLapsPrev,
                          HandleLapsNext);
+  lv_time_attack_ui_set_swipe_down_handler(ShowGForceScreen);
+  screen_gforce_init(ShowMainScreen);
   lv_obj_invalidate(lv_scr_act());
   lv_timer_handler();
 #endif
