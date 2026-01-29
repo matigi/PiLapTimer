@@ -1,3 +1,5 @@
+#include "pilaptimer_forward.h"
+
 #include <Arduino.h>
 #include <string.h>
 
