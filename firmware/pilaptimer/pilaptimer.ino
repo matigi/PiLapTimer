@@ -26,6 +26,8 @@
 #include "lv_time_attack_ui.h"
 #include "screen_gforce.h"
 #include "screen_nav.h"
+
+lv_obj_t *screen_gforce_get_screen(void);
 #endif
 
 #ifndef WHITE
@@ -740,10 +742,11 @@ void setup() {
                          HandleDriverNext,
                          HandleLapsPrev,
                          HandleLapsNext);
-  lv_time_attack_ui_set_swipe_down_handler(ShowGForceScreen);
-  screen_gforce_init();
+  lv_time_attack_ui_set_swipe_left_handler(ShowGForceScreen);
   screen_gforce_get_screen();
-  lv_obj_invalidate(lv_scr_act());
+  if (!screen_nav_is_transitioning()) {
+    lv_obj_invalidate(lv_scr_act());
+  }
   lv_timer_handler();
 #endif
 
@@ -762,7 +765,9 @@ void loop() {
     lv_tick_inc(delta);
     lastTick = now;
   }
-  lv_obj_invalidate(lv_scr_act());
+  if (!screen_nav_is_transitioning()) {
+    lv_obj_invalidate(lv_scr_act());
+  }
   lv_timer_handler();
 #else
   uint32_t now = millis();
