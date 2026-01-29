@@ -6,6 +6,9 @@
 #include <Arduino.h>
 
 #include "imu_qmi8658.h"
+
+static lv_obj_t *gforceScreen = nullptr;
+
 namespace {
 constexpr float kGravityMs2 = 9.80665f;
 constexpr uint32_t kCalibrationMs = 800;
@@ -238,10 +241,8 @@ void build_ticks(lv_obj_t *parent) {
   }
 }
 
-}  // namespace
-
-void screen_gforce_init(lv_obj_t *parent) {
-  refs.root = parent ? parent : lv_obj_create(nullptr);
+void build_gforce_screen(lv_obj_t *root) {
+  refs.root = root;
   lv_obj_set_style_bg_color(refs.root, lv_color_hex(0x0b0f14), 0);
   lv_obj_set_style_bg_opa(refs.root, LV_OPA_COVER, 0);
   lv_obj_clear_flag(refs.root, LV_OBJ_FLAG_SCROLLABLE);
@@ -312,4 +313,16 @@ void screen_gforce_init(lv_obj_t *parent) {
   start_calibration();
   update_labels(0.0f, 0.0f, 0.0f, 0.0f);
   update_ball(0.0f, 0.0f);
+}
+}  // namespace
+
+void screen_gforce_init(void) {
+  (void)screen_gforce_get_screen();
+}
+
+lv_obj_t *screen_gforce_get_screen(void) {
+  if (gforceScreen) return gforceScreen;
+  gforceScreen = lv_obj_create(nullptr);
+  build_gforce_screen(gforceScreen);
+  return gforceScreen;
 }
