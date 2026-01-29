@@ -46,6 +46,7 @@ void (*driverPrevHandler)() = nullptr;
 void (*driverNextHandler)() = nullptr;
 void (*lapsPrevHandler)() = nullptr;
 void (*lapsNextHandler)() = nullptr;
+void (*swipeDownHandler)() = nullptr;
 
 lv_style_t bestRowStyle;
 
@@ -179,6 +180,16 @@ void laps_plus_event(lv_event_t *e) {
   }
 }
 
+void screen_gesture_event(lv_event_t *e) {
+  if (lv_event_get_code(e) != LV_EVENT_GESTURE) return;
+  lv_indev_t *indev = lv_indev_get_act();
+  if (!indev) return;
+  lv_dir_t dir = lv_indev_get_gesture_dir(indev);
+  if (dir == LV_DIR_BOTTOM && swipeDownHandler) {
+    swipeDownHandler();
+  }
+}
+
 lv_obj_t *makeSpinboxRow(lv_obj_t *parent, const char *labelText,
                          lv_obj_t **minusBtn, lv_obj_t **spinbox, lv_obj_t **plusBtn) {
   lv_obj_t *row = lv_obj_create(parent);
@@ -262,6 +273,7 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_obj_set_style_bg_color(refs.screen, lv_color_hex(0x0b0f14), 0);
   lv_obj_set_style_bg_opa(refs.screen, LV_OPA_COVER, 0);
   lv_obj_clear_flag(refs.screen, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_event_cb(refs.screen, screen_gesture_event, LV_EVENT_GESTURE, nullptr);
 
   refs.tileview = lv_tileview_create(refs.screen);
   lv_obj_set_size(refs.tileview, lv_disp_get_hor_res(nullptr), lv_disp_get_ver_res(nullptr));
