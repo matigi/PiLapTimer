@@ -29,5 +29,6 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
                             void (*lapsPrevCb)(),
                             void (*lapsNextCb)());
 void lv_time_attack_ui_update(const UiSnapshot &snapshot);
+lv_obj_t *lv_time_attack_ui_get_screen();
 
 #endif

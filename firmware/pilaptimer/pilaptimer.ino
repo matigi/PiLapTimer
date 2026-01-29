@@ -1,3 +1,5 @@
+#include "pilaptimer_forward.h"
+
 #include <Arduino.h>
 #include <string.h>
 
@@ -5,6 +7,7 @@
 #include "AMOLED_1in64.h"
 #include "qspi_pio.h"
 #include "QMI8658.h"
+#include "imu_qmi8658.h"
 #include "FT3168.h"
 #include "GUI_Paint.h"
 #include "fonts.h"
@@ -21,6 +24,7 @@
 #include "lv_port_disp.h"
 #include "lv_port_indev.h"
 #include "lv_time_attack_ui.h"
+#include "screen_gforce.h"
 #endif
 
 #ifndef WHITE
@@ -702,7 +706,9 @@ void setup() {
 #endif
 
   Serial.println("I2C bring-up via QMI8658_init()...");
-  QMI8658_init();
+  if (!imu_qmi8658_init()) {
+    Serial.println("WARN: QMI8658 init failed");
+  }
   delay(50);
 
   Serial.println("TOUCH: FT3168_Init(FT3168_Gesture_Mode)...");
