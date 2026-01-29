@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "screen_gforce.h"
+#include "screen_reaction.h"
 
 namespace {
 constexpr uint8_t kMaxDrivers = 10;
@@ -14,6 +15,7 @@ struct UiRefs {
   lv_obj_t *screen;
   lv_obj_t *tileview;
   lv_obj_t *raceTile;
+  lv_obj_t *reactionTile;
   lv_obj_t *reviewTile;
   lv_obj_t *gforceTile;
   lv_obj_t *settingsTile;
@@ -47,6 +49,7 @@ void (*driverNextHandler)() = nullptr;
 void (*lapsPrevHandler)() = nullptr;
 void (*lapsNextHandler)() = nullptr;
 nav_handler_t swipeLeftHandler = nullptr;
+nav_handler_t swipeRightHandler = nullptr;
 
 lv_style_t bestRowStyle;
 
@@ -187,6 +190,8 @@ void screen_gesture_event(lv_event_t *e) {
   lv_dir_t dir = lv_indev_get_gesture_dir(indev);
   if (dir == LV_DIR_LEFT && swipeLeftHandler) {
     swipeLeftHandler();
+  } else if (dir == LV_DIR_RIGHT && swipeRightHandler) {
+    swipeRightHandler();
   }
 }
 
@@ -287,14 +292,17 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_obj_add_event_cb(refs.tileview, tileview_scroll_event, LV_EVENT_SCROLL_END, nullptr);
 
   refs.settingsTile = lv_tileview_add_tile(refs.tileview, 0, 0, LV_DIR_RIGHT);
-  refs.raceTile = lv_tileview_add_tile(refs.tileview, 1, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
-  refs.gforceTile = lv_tileview_add_tile(refs.tileview, 2, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
-  refs.reviewTile = lv_tileview_add_tile(refs.tileview, 3, 0, LV_DIR_LEFT);
+  refs.reactionTile = lv_tileview_add_tile(refs.tileview, 1, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
+  refs.raceTile = lv_tileview_add_tile(refs.tileview, 2, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
+  refs.gforceTile = lv_tileview_add_tile(refs.tileview, 3, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
+  refs.reviewTile = lv_tileview_add_tile(refs.tileview, 4, 0, LV_DIR_LEFT);
 
   lv_obj_set_tile(refs.tileview, refs.raceTile, LV_ANIM_OFF);
   // Swipe left on the main timer tile to reach G-Force.
+  // Swipe right on the main timer tile to reach Reaction Race (settings is one more swipe).
   lv_obj_add_event_cb(refs.raceTile, screen_gesture_event, LV_EVENT_GESTURE, nullptr);
   screen_gforce_attach(refs.gforceTile);
+  screen_reaction_attach(refs.reactionTile);
 
   // Race tile
   refs.bestLabel = lv_label_create(refs.raceTile);
@@ -463,6 +471,10 @@ void lv_time_attack_ui_set_swipe_left_handler(nav_handler_t cb) {
   swipeLeftHandler = cb;
 }
 
+void lv_time_attack_ui_set_swipe_right_handler(nav_handler_t cb) {
+  swipeRightHandler = cb;
+}
+
 lv_obj_t *lv_time_attack_ui_get_screen() {
   return refs.screen;
 }
@@ -470,6 +482,11 @@ lv_obj_t *lv_time_attack_ui_get_screen() {
 void lv_time_attack_ui_show_race_tile() {
   if (!refs.tileview || !refs.raceTile) return;
   lv_obj_set_tile(refs.tileview, refs.raceTile, LV_ANIM_ON);
+}
+
+void lv_time_attack_ui_show_reaction_tile() {
+  if (!refs.tileview || !refs.reactionTile) return;
+  lv_obj_set_tile(refs.tileview, refs.reactionTile, LV_ANIM_ON);
 }
 
 void lv_time_attack_ui_show_gforce_tile() {
