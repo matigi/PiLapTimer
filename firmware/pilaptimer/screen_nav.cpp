@@ -17,6 +17,11 @@ void ShowMainScreen() {
   lv_time_attack_ui_show_race_tile();
 }
 
+void ShowReactionScreen() {
+  lv_scr_load(lv_time_attack_ui_get_screen());
+  lv_time_attack_ui_show_reaction_tile();
+}
+
 void ShowGForceScreen() {
   lv_scr_load(lv_time_attack_ui_get_screen());
   lv_time_attack_ui_show_gforce_tile();
@@ -29,6 +34,7 @@ void screen_nav_set_transitioning(bool transitioning) {
 bool screen_nav_is_transitioning() { return g_is_transitioning; }
 #else
 void ShowMainScreen() {}
+void ShowReactionScreen() {}
 void ShowGForceScreen() {}
 void screen_nav_set_transitioning(bool) {}
 bool screen_nav_is_transitioning() { return false; }
