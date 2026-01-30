@@ -16,7 +16,7 @@
 #include "screen_reaction.h"
 #include "ui_state.h"
 
-#include "boot_splash_v2_280x456_rgb565.h"
+#include "boot_splash_v3_280x456_rgb565.h"
 
 #ifndef USE_LVGL_UI
 #define USE_LVGL_UI 1
@@ -87,7 +87,7 @@ static const float REACTION_GRAVITY_MS2 = 9.80665f;
 static UWORD* gFrame = nullptr;
 
 static void ShowBootSplashImage() {
-  AMOLED_1IN64_Display((UWORD*)boot_splash_v2_rgb565);
+  AMOLED_1IN64_Display((UWORD*)boot_splash_v3_rgb565);
   delay(2000);
 }
 
