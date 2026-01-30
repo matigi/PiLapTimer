@@ -40,6 +40,7 @@ void create_light_column(lv_obj_t *parent, lv_align_t align, int16_t xOffset, in
   lv_obj_set_size(lightColumn, kLightSize, kLightSize * kLightCount);
   lv_obj_set_style_bg_opa(lightColumn, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(lightColumn, 0, 0);
+  lv_obj_set_style_pad_all(lightColumn, 0, 0);
   lv_obj_set_flex_flow(lightColumn, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_flex_align(lightColumn, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER);
@@ -115,8 +116,8 @@ void screen_reaction_attach(lv_obj_t *parent) {
   lv_obj_set_style_text_font(refs.statusLabel, &lv_font_montserrat_24, 0);
   lv_obj_align(refs.statusLabel, LV_ALIGN_TOP_MID, 0, 44);
 
-  create_light_column(refs.root, LV_ALIGN_LEFT_MID, 16, -24, refs.amberLeft, &refs.greenLeft);
-  create_light_column(refs.root, LV_ALIGN_RIGHT_MID, -16, -24, refs.amberRight, &refs.greenRight);
+  create_light_column(refs.root, LV_ALIGN_LEFT_MID, 16, -16, refs.amberLeft, &refs.greenLeft);
+  create_light_column(refs.root, LV_ALIGN_RIGHT_MID, -16, -16, refs.amberRight, &refs.greenRight);
 
   refs.rtLabel = lv_label_create(refs.root);
   lv_label_set_text(refs.rtLabel, "R/T: ---.---s");
