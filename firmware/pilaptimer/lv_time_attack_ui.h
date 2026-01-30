@@ -20,6 +20,7 @@ struct UiSnapshot {
   bool driverRunValid[10];
   uint32_t driverTotalMs[10];
   uint32_t driverBestLapMs[10];
+  uint32_t driverBestReactionMs[10];
 };
 
 void lv_time_attack_ui_init(void (*startStopCb)(),

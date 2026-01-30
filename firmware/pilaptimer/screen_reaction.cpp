@@ -70,12 +70,6 @@ void update_status_style(ReactionState state) {
   lv_obj_set_style_text_color(refs.statusLabel, color, 0);
 }
 
-void format_ms(char *out, size_t size, uint32_t ms) {
-  if (size == 0) return;
-  float seconds = (float)ms / 1000.0f;
-  snprintf(out, size, "%0.3fs", (double)seconds);
-}
-
 void on_root_event(lv_event_t *e) {
   if (lv_event_get_code(e) == LV_EVENT_GESTURE) {
     lv_indev_t *indev = lv_indev_get_act();
@@ -218,7 +212,7 @@ void screen_reaction_update(const ReactionUiSnapshot &snapshot) {
 
   char buffer[32];
   if (snapshot.reactionCaptured || snapshot.state == REACTION_WAIT_FOR_MOVE) {
-    format_ms(buffer, sizeof(buffer), snapshot.reactionMs);
+    format_reaction_ms(buffer, sizeof(buffer), snapshot.reactionMs);
     char line[40];
     snprintf(line, sizeof(line), "R/T: %s", buffer);
     lv_label_set_text(refs.rtLabel, line);
@@ -227,7 +221,7 @@ void screen_reaction_update(const ReactionUiSnapshot &snapshot) {
   }
 
   if (snapshot.bestReactionMs > 0) {
-    format_ms(buffer, sizeof(buffer), snapshot.bestReactionMs);
+    format_reaction_ms(buffer, sizeof(buffer), snapshot.bestReactionMs);
     char bestLine[40];
     snprintf(bestLine, sizeof(bestLine), "Best R/T: %s", buffer);
     lv_label_set_text(refs.bestLabel, bestLine);

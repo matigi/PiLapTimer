@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <math.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "DEV_Config.h"
@@ -321,6 +322,8 @@ static const uint8_t MAX_LAPS = 20;
 
 static RunStats gDriverRuns[MAX_DRIVERS] = {};
 static int gLastCompletedDriver = -1;
+static const uint32_t kNoReactionMs = UINT32_MAX;
+static uint32_t gDriverBestReactionMs[MAX_DRIVERS] = {};
 
 static uint8_t gSelectedDriver = 1;
 static uint8_t gSelectedLaps = 5;
@@ -675,12 +678,14 @@ static void HandleReset() {
 static void HandleDriverPrev() {
   if (gState != UI_IDLE) return;
   gSelectedDriver = (gSelectedDriver == 1) ? MAX_DRIVERS : (gSelectedDriver - 1);
+  ReactionSyncBestForDriver();
   RenderState();
 }
 
 static void HandleDriverNext() {
   if (gState != UI_IDLE) return;
   gSelectedDriver = (gSelectedDriver == MAX_DRIVERS) ? 1 : (gSelectedDriver + 1);
+  ReactionSyncBestForDriver();
   RenderState();
 }
 
@@ -760,6 +765,14 @@ static void ReactionSetModeActive(bool active) {
     ReactionResetRunState();
     ReactionSetState(REACTION_IDLE, millis());
   }
+}
+
+static void ReactionSyncBestForDriver() {
+  uint32_t stored = gDriverBestReactionMs[gSelectedDriver - 1];
+  gReactionBestMs = (stored == kNoReactionMs) ? 0 : stored;
+#if USE_LVGL_UI
+  gReactionUiDirty = true;
+#endif
 }
 
 static bool ReactionPollImu(uint32_t now, float &accelDeltaG, float &gyroDps) {
@@ -858,9 +871,15 @@ static void UpdateReaction(uint32_t now) {
         }
         if ((now - gReactionMoveStartMs) >= REACTION_DEBOUNCE_MS) {
           gReactionReactionMs = now - gReactionGoMs;
-          if (gReactionBestMs == 0 || gReactionReactionMs < gReactionBestMs) {
-            gReactionBestMs = gReactionReactionMs;
+          uint8_t driverIndex = gSelectedDriver - 1;
+          uint32_t priorBest = gDriverBestReactionMs[driverIndex];
+          if (priorBest == kNoReactionMs || gReactionReactionMs < priorBest) {
+            gDriverBestReactionMs[driverIndex] = gReactionReactionMs;
           }
+          ReactionSyncBestForDriver();
+#if USE_LVGL_UI
+          gUiDirty = true;
+#endif
           gReactionReactionCaptured = true;
 #if REACTION_DEBUG
           Serial.printf("REACTION movement detected accΔ=%.3fg gyro=%.1fdps @ %lu\n",
@@ -977,6 +996,11 @@ void setup() {
 
   pinMode(IR_IN_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(IR_IN_PIN), IrIsr, FALLING);
+
+  for (uint8_t i = 0; i < MAX_DRIVERS; ++i) {
+    gDriverBestReactionMs[i] = kNoReactionMs;
+  }
+  ReactionSyncBestForDriver();
 
 #if !USE_LVGL_UI
   DrawSplash(id == 0x03 ? "Touch OK. Ready" : "Touch ID not 0x03");
@@ -1169,6 +1193,8 @@ void loop() {
       snapshot.driverRunValid[i] = gDriverRuns[i].valid;
       snapshot.driverTotalMs[i] = gDriverRuns[i].totalMs;
       snapshot.driverBestLapMs[i] = gDriverRuns[i].bestMs;
+      snapshot.driverBestReactionMs[i] =
+          (gDriverBestReactionMs[i] == kNoReactionMs) ? 0 : gDriverBestReactionMs[i];
     }
     if (gState == UI_RUNNING) {
       snapshot.currentLapMs = (gLapCount == 0) ? (now - gStartMs) : (now - gLastLapStartMs);
@@ -1251,6 +1277,7 @@ void loop() {
         }
       }
       if (changed) {
+        ReactionSyncBestForDriver();
         RenderState();
       }
     } else if (gState == UI_ARMED) {
