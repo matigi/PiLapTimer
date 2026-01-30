@@ -126,18 +126,21 @@ static const uint16_t UI_CENTER_BUTTON_W = 180;
 static const uint16_t UI_CENTER_BUTTON_X = (LOGICAL_W - UI_CENTER_BUTTON_W) / 2;
 
 // ----------------- Beep (no tone) -----------------
+static const uint16_t note_g4 = 392;
+static const uint16_t note_g5 = 784;
+
 struct BeepStep {
   uint16_t freq;
   uint16_t durationMs;
 };
 
 static const BeepStep kBestLapBeep[] = {
-  {392, 250},  // G4
-  {784, 500},  // G5
+  {note_g4, 250},
+  {note_g5, 500},
 };
 
 static const BeepStep kLapBeep[] = {
-  {392, 250},  // G4
+  {note_g4, 250},
   {262, 500},  // C4
 };
 
@@ -337,17 +340,12 @@ static uint32_t gReactionGoMs = 0;
 static uint32_t gReactionRunMs = 0;
 static uint32_t gReactionReactionMs = 0;
 static uint32_t gReactionBestMs = 0;
-static uint32_t gReactionLastMs = 0;
-static uint32_t gReactionLastLapStartMs = 0;
-static uint32_t gReactionLastLapMs = 0;
 static uint32_t gReactionRandomDelayMs = 0;
 static uint32_t gReactionLastActionMs = 0;
 static uint8_t gReactionAmberCount = 0;
-static uint8_t gReactionLapCount = 0;
 static bool gReactionReactionCaptured = false;
 static bool gReactionModeActive = false;
 static bool gReactionActionPending = false;
-static bool gReactionIgnoreNextIrHit = false;
 static uint32_t gReactionLastImuMs = 0;
 static uint32_t gReactionMoveStartMs = 0;
 static uint32_t gReactionLastMetricLogMs = 0;
@@ -717,12 +715,8 @@ static void ReactionResetRunState() {
   gReactionRunMs = 0;
   gReactionReactionMs = 0;
   gReactionRandomDelayMs = 0;
-  gReactionLapCount = 0;
-  gReactionLastLapStartMs = 0;
-  gReactionLastLapMs = 0;
   gReactionReactionCaptured = false;
   gReactionActionPending = false;
-  gReactionIgnoreNextIrHit = false;
   gReactionLastImuMs = 0;
   gReactionMoveStartMs = 0;
   gReactionLastMetricLogMs = 0;
@@ -789,7 +783,7 @@ static bool ReactionPollImu(uint32_t now, float &accelDeltaG, float &gyroDps) {
   return true;
 }
 
-static void UpdateReaction(uint32_t now, bool irTrigger, uint32_t irMs) {
+static void UpdateReaction(uint32_t now) {
   if (!gReactionModeActive) return;
 
   if (gReactionActionPending) {
@@ -797,35 +791,18 @@ static void UpdateReaction(uint32_t now, bool irTrigger, uint32_t irMs) {
     ReactionRegisterAction(now);
   }
 
-  if (irTrigger && gReactionGoMs > 0) {
-    if (gReactionIgnoreNextIrHit) {
-      gReactionIgnoreNextIrHit = false;
-#if REACTION_DEBUG
-      Serial.printf("REACTION ignored first IR hit @ %lu\n", (unsigned long)irMs);
-#endif
-    } else if (gReactionState == REACTION_LAP_TIMING) {
-      gReactionLapCount++;
-      gReactionLastLapMs = irMs - gReactionLastLapStartMs;
-      gReactionLastLapStartMs = irMs;
-      gReactionRunMs = irMs - gReactionGoMs;
-#if REACTION_DEBUG
-      Serial.printf("REACTION lap %u time=%lu ms\n",
-                    (unsigned)gReactionLapCount,
-                    (unsigned long)gReactionLastLapMs);
-#endif
-    }
-  }
-
   switch (gReactionState) {
     case REACTION_ARMED:
       if ((now - gReactionStateMs) >= REACTION_STAGE_DELAY_MS) {
         gReactionAmberCount = 1;
+        BeepNow(note_g4, 60);
         ReactionSetState(REACTION_COUNTDOWN, now);
       }
       break;
     case REACTION_COUNTDOWN:
       if ((now - gReactionStateMs) >= REACTION_AMBER_STEP_MS) {
         gReactionAmberCount++;
+        BeepNow(note_g4, 60);
         if (gReactionAmberCount >= 3) {
           gReactionRandomDelayMs = random(REACTION_RANDOM_MIN_MS, REACTION_RANDOM_MAX_MS + 1);
           ReactionSetState(REACTION_READY_RANDOM, now);
@@ -840,17 +817,16 @@ static void UpdateReaction(uint32_t now, bool irTrigger, uint32_t irMs) {
     case REACTION_READY_RANDOM:
       if ((now - gReactionStateMs) >= gReactionRandomDelayMs) {
         gReactionGoMs = now;
-        gReactionLastLapStartMs = now;
         gReactionRunMs = 0;
         gReactionReactionCaptured = false;
         gReactionAmberCount = 0;
-        gReactionIgnoreNextIrHit = true;
         gReactionMoveStartMs = 0;
         gReactionLastImuMs = 0;
         gReactionLastMetricLogMs = 0;
 #if REACTION_DEBUG
         Serial.printf("REACTION green @ %lu\n", (unsigned long)now);
 #endif
+        BeepNow(note_g5, 80);
         ReactionSetState(REACTION_WAIT_FOR_MOVE, now);
       }
       break;
@@ -882,7 +858,6 @@ static void UpdateReaction(uint32_t now, bool irTrigger, uint32_t irMs) {
         }
         if ((now - gReactionMoveStartMs) >= REACTION_DEBOUNCE_MS) {
           gReactionReactionMs = now - gReactionGoMs;
-          gReactionLastMs = gReactionReactionMs;
           if (gReactionBestMs == 0 || gReactionReactionMs < gReactionBestMs) {
             gReactionBestMs = gReactionReactionMs;
           }
@@ -891,18 +866,13 @@ static void UpdateReaction(uint32_t now, bool irTrigger, uint32_t irMs) {
           Serial.printf("REACTION movement detected accΔ=%.3fg gyro=%.1fdps @ %lu\n",
                         (double)accelDeltaG, (double)gyroDps, (unsigned long)now);
 #endif
-          ReactionSetState(REACTION_LAP_TIMING, now);
+          ReactionSetState(REACTION_IDLE, now);
         }
       } else {
         gReactionMoveStartMs = 0;
       }
       break;
     }
-    case REACTION_LAP_TIMING:
-      if (gReactionGoMs > 0) {
-        gReactionRunMs = now - gReactionGoMs;
-      }
-      break;
     case REACTION_FALSE_START:
       if ((now - gReactionStateMs) >= REACTION_FALSE_START_LOCKOUT_MS) {
         ReactionResetRunState();
@@ -918,18 +888,23 @@ static void UpdateReaction(uint32_t now, bool irTrigger, uint32_t irMs) {
 #if USE_LVGL_UI
 static void HandleReactionSwipeLeft() {
   ReactionSetModeActive(false);
-  ShowMainScreen();
+  ShowGForceScreen();
 }
 
 static void HandleReactionSwipeRight() {
   ReactionSetModeActive(false);
+  ShowMainScreen();
 }
 
-static void HandleMainSwipeRight() {
-  // Prefer Reaction Race on swipe-right; Settings remains one swipe further right.
+static void HandleMainSwipeLeft() {
   if (gState == UI_RUNNING) return;
   ReactionSetModeActive(true);
   ShowReactionScreen();
+}
+
+static void HandleMainSwipeRight() {
+  if (gState == UI_RUNNING) return;
+  lv_time_attack_ui_show_settings_tile();
 }
 
 static void HandleReactionTap() {
@@ -1020,7 +995,7 @@ void setup() {
                          HandleDriverNext,
                          HandleLapsPrev,
                          HandleLapsNext);
-  lv_time_attack_ui_set_swipe_left_handler(ShowGForceScreen);
+  lv_time_attack_ui_set_swipe_left_handler(HandleMainSwipeLeft);
   lv_time_attack_ui_set_swipe_right_handler(HandleMainSwipeRight);
   screen_reaction_set_swipe_left_handler(HandleReactionSwipeLeft);
   screen_reaction_set_swipe_right_handler(HandleReactionSwipeRight);
@@ -1165,7 +1140,7 @@ void loop() {
     }
   }
 
-  UpdateReaction(now, irTrigger, irMs);
+  UpdateReaction(now);
 
   if (gState == UI_RUNNING) {
     gSessionMs = now - gStartMs;
@@ -1212,8 +1187,7 @@ void loop() {
     ReactionUiSnapshot reactionSnapshot{};
     reactionSnapshot.state = gReactionState;
     reactionSnapshot.amberCount = gReactionAmberCount;
-    reactionSnapshot.greenOn = (gReactionState == REACTION_WAIT_FOR_MOVE ||
-                                gReactionState == REACTION_LAP_TIMING);
+    reactionSnapshot.greenOn = (gReactionState == REACTION_WAIT_FOR_MOVE);
     reactionSnapshot.reactionCaptured = gReactionReactionCaptured;
     if (gReactionReactionCaptured) {
       reactionSnapshot.reactionMs = gReactionReactionMs;
@@ -1222,9 +1196,7 @@ void loop() {
     } else {
       reactionSnapshot.reactionMs = 0;
     }
-    reactionSnapshot.runMs = gReactionRunMs;
     reactionSnapshot.bestReactionMs = gReactionBestMs;
-    reactionSnapshot.lastReactionMs = gReactionLastMs;
     screen_reaction_update(reactionSnapshot);
   }
 #endif

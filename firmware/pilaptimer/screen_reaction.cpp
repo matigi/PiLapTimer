@@ -8,9 +8,7 @@ struct ReactionRefs {
   lv_obj_t *root;
   lv_obj_t *statusLabel;
   lv_obj_t *rtLabel;
-  lv_obj_t *timerLabel;
   lv_obj_t *bestLabel;
-  lv_obj_t *lastLabel;
   lv_obj_t *armBtn;
   lv_obj_t *armLabel;
   lv_obj_t *amber[3];
@@ -35,7 +33,7 @@ void update_status_style(ReactionState state) {
   lv_color_t color = lv_color_hex(0xbad1e8);
   if (state == REACTION_FALSE_START) {
     color = lv_color_hex(0xff5a5f);
-  } else if (state == REACTION_WAIT_FOR_MOVE || state == REACTION_LAP_TIMING) {
+  } else if (state == REACTION_WAIT_FOR_MOVE) {
     color = lv_color_hex(0x7bf1a8);
   }
   lv_obj_set_style_text_color(refs.statusLabel, color, 0);
@@ -115,28 +113,16 @@ void screen_reaction_attach(lv_obj_t *parent) {
   lv_obj_set_style_border_width(refs.green, 0, 0);
 
   refs.rtLabel = lv_label_create(refs.root);
-  lv_label_set_text(refs.rtLabel, "Reaction: ---.---s");
+  lv_label_set_text(refs.rtLabel, "R/T time: ---.---s");
   lv_obj_set_style_text_font(refs.rtLabel, &lv_font_montserrat_32, 0);
   lv_obj_set_style_text_color(refs.rtLabel, lv_color_hex(0xf5f8ff), 0);
-  lv_obj_align(refs.rtLabel, LV_ALIGN_BOTTOM_MID, 0, -120);
-
-  refs.timerLabel = lv_label_create(refs.root);
-  lv_label_set_text(refs.timerLabel, "TIME: 0.000s");
-  lv_obj_set_style_text_font(refs.timerLabel, &lv_font_montserrat_24, 0);
-  lv_obj_set_style_text_color(refs.timerLabel, lv_color_hex(0xc3d2e4), 0);
-  lv_obj_align(refs.timerLabel, LV_ALIGN_BOTTOM_MID, 0, -90);
+  lv_obj_align(refs.rtLabel, LV_ALIGN_BOTTOM_MID, 0, -90);
 
   refs.bestLabel = lv_label_create(refs.root);
-  lv_label_set_text(refs.bestLabel, "Best RT: ---.---s");
+  lv_label_set_text(refs.bestLabel, "Best R/T: ---.---s");
   lv_obj_set_style_text_font(refs.bestLabel, &lv_font_montserrat_20, 0);
   lv_obj_set_style_text_color(refs.bestLabel, lv_color_hex(0x8fa0b6), 0);
-  lv_obj_align(refs.bestLabel, LV_ALIGN_BOTTOM_LEFT, 16, -52);
-
-  refs.lastLabel = lv_label_create(refs.root);
-  lv_label_set_text(refs.lastLabel, "Last RT: ---.---s");
-  lv_obj_set_style_text_font(refs.lastLabel, &lv_font_montserrat_20, 0);
-  lv_obj_set_style_text_color(refs.lastLabel, lv_color_hex(0x8fa0b6), 0);
-  lv_obj_align(refs.lastLabel, LV_ALIGN_BOTTOM_LEFT, 16, -28);
+  lv_obj_align(refs.bestLabel, LV_ALIGN_BOTTOM_MID, 0, -56);
 
   refs.armBtn = lv_btn_create(refs.root);
   lv_obj_set_size(refs.armBtn, 200, 56);
@@ -158,9 +144,7 @@ void screen_reaction_attach(lv_obj_t *parent) {
   snapshot.greenOn = false;
   snapshot.reactionCaptured = false;
   snapshot.reactionMs = 0;
-  snapshot.runMs = 0;
   snapshot.bestReactionMs = 0;
-  snapshot.lastReactionMs = 0;
   screen_reaction_update(snapshot);
 }
 
@@ -204,9 +188,6 @@ void screen_reaction_update(const ReactionUiSnapshot &snapshot) {
     case REACTION_WAIT_FOR_MOVE:
       stateText = "WAITING FOR MOVE";
       break;
-    case REACTION_LAP_TIMING:
-      stateText = "RUNNING";
-      break;
     case REACTION_FALSE_START:
       stateText = "FALSE START";
       break;
@@ -218,33 +199,19 @@ void screen_reaction_update(const ReactionUiSnapshot &snapshot) {
   if (snapshot.reactionCaptured || snapshot.state == REACTION_WAIT_FOR_MOVE) {
     format_ms(buffer, sizeof(buffer), snapshot.reactionMs);
     char line[40];
-    snprintf(line, sizeof(line), "Reaction: %s", buffer);
+    snprintf(line, sizeof(line), "R/T time: %s", buffer);
     lv_label_set_text(refs.rtLabel, line);
   } else {
-    lv_label_set_text(refs.rtLabel, "Reaction: ---.---s");
+    lv_label_set_text(refs.rtLabel, "R/T time: ---.---s");
   }
-
-  format_ms(buffer, sizeof(buffer), snapshot.runMs);
-  char timeLine[40];
-  snprintf(timeLine, sizeof(timeLine), "TIME: %s", buffer);
-  lv_label_set_text(refs.timerLabel, timeLine);
 
   if (snapshot.bestReactionMs > 0) {
     format_ms(buffer, sizeof(buffer), snapshot.bestReactionMs);
     char bestLine[40];
-    snprintf(bestLine, sizeof(bestLine), "Best RT: %s", buffer);
+    snprintf(bestLine, sizeof(bestLine), "Best R/T: %s", buffer);
     lv_label_set_text(refs.bestLabel, bestLine);
   } else {
-    lv_label_set_text(refs.bestLabel, "Best RT: ---.---s");
-  }
-
-  if (snapshot.lastReactionMs > 0) {
-    format_ms(buffer, sizeof(buffer), snapshot.lastReactionMs);
-    char lastLine[40];
-    snprintf(lastLine, sizeof(lastLine), "Last RT: %s", buffer);
-    lv_label_set_text(refs.lastLabel, lastLine);
-  } else {
-    lv_label_set_text(refs.lastLabel, "Last RT: ---.---s");
+    lv_label_set_text(refs.bestLabel, "Best R/T: ---.---s");
   }
 
   const bool armEnabled = snapshot.state == REACTION_IDLE || snapshot.state == REACTION_FALSE_START;
