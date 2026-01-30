@@ -116,8 +116,8 @@ void screen_reaction_attach(lv_obj_t *parent) {
   lv_obj_set_style_text_font(refs.statusLabel, &lv_font_montserrat_24, 0);
   lv_obj_align(refs.statusLabel, LV_ALIGN_TOP_MID, 0, 44);
 
-  create_light_column(refs.root, LV_ALIGN_LEFT_MID, 16, -24, refs.amberLeft, &refs.greenLeft);
-  create_light_column(refs.root, LV_ALIGN_RIGHT_MID, -16, -24, refs.amberRight, &refs.greenRight);
+  create_light_column(refs.root, LV_ALIGN_LEFT_MID, 16, -16, refs.amberLeft, &refs.greenLeft);
+  create_light_column(refs.root, LV_ALIGN_RIGHT_MID, -16, -16, refs.amberRight, &refs.greenRight);
 
   refs.rtLabel = lv_label_create(refs.root);
   lv_label_set_text(refs.rtLabel, "R/T: ---.---s");
