@@ -15,6 +15,7 @@
 #include "fonts.h"
 #include "screen_reaction.h"
 #include "ui_state.h"
+#include "sd_logger.h"
 
 #include "boot_splash_v4_280x456_rgb565.h"
 
@@ -906,6 +907,9 @@ static void UpdateReaction(uint32_t now) {
             gDriverBestReactionMs[driverIndex] = gReactionReactionMs;
           }
           ReactionSyncBestForDriver();
+          sd_logger_log_rt(gSelectedDriver,
+                           gReactionReactionMs,
+                           gDriverBestReactionMs[driverIndex]);
 #if USE_LVGL_UI
           gUiDirty = true;
 #endif
@@ -972,6 +976,10 @@ void setup() {
   Serial.println();
   Serial.println("BOOT: PiLapTimer time attack UI");
   randomSeed(micros());
+
+  if (sd_logger_init()) {
+    sd_logger_start_new_session();
+  }
 
   if (DEV_Module_Init() != 0) Serial.println("DEV_Module_Init FAILED");
   else Serial.println("DEV_Module_Init OK");
@@ -1184,6 +1192,11 @@ void loop() {
       gDeltaMs = (int32_t)gLastLapMs - (int32_t)gBestLapMs;
 
       Serial.printf("LAP %u time=%lu ms\n", (unsigned)gLapCount, (unsigned long)gLastLapMs);
+      sd_logger_log_lap(gSelectedDriver,
+                        gLapCount,
+                        gLastLapMs,
+                        gBestLapMs,
+                        gSelectedLaps);
 
       if ((irMs - gLastBeepMs) >= BEEP_DEBOUNCE_MS) {
         BeepLap(bestLap);
@@ -1336,4 +1349,6 @@ void loop() {
     }
   }
 #endif
+
+  sd_logger_loop();
 }
