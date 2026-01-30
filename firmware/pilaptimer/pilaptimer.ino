@@ -715,6 +715,7 @@ static void ReactionResetRunState() {
 
 static void ReactionArmOrReset() {
   uint32_t now = millis();
+  ReactionSetModeActive(true);
   if (gReactionState == REACTION_IDLE || gReactionState == REACTION_FALSE_START) {
     ReactionResetRunState();
     ReactionSetState(REACTION_ARMED, now);
