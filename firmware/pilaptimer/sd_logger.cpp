@@ -280,21 +280,26 @@ static bool FlushLogs() {
 bool sd_logger_init() {
   if (gReady) return true;
 
+  Serial.println("SD: init start");
   if (!SD.begin(SD_CS_PIN)) {
-    DebugPrint("SD init failed");
+    Serial.printf("SD: init failed (CS pin %u)\n", (unsigned)SD_CS_PIN);
     gReady = false;
     return false;
   }
 
   if (!EnsureDir(kBaseDir)) {
-    DebugPrint("SD mkdir failed: base dir");
+    Serial.println("SD: mkdir failed (base dir)");
+    gReady = false;
+    return false;
   }
   if (!EnsureDir(kSessionsDir)) {
-    DebugPrint("SD mkdir failed: sessions dir");
+    Serial.println("SD: mkdir failed (sessions dir)");
+    gReady = false;
+    return false;
   }
 
   gReady = true;
-  DebugPrint("SD init OK");
+  Serial.println("SD: init OK");
   return true;
 }
 
