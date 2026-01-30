@@ -28,9 +28,9 @@ constexpr int32_t kSmallTickLength = 6;
 // Axis mapping for the installed PCB orientation.
 // Adjust these indexes/signs after a real-world test if forward/left do not match.
 constexpr int kAxisLat = 0;   // IMU axis used for lateral G (left/right).
-constexpr int kAxisLong = 1;  // IMU axis used for longitudinal G (accel/brake).
-constexpr int kAxisVert = 2;  // IMU axis used for vertical (gravity) component.
-constexpr float kAxisLatSign = 1.0f;
+constexpr int kAxisLong = 2;  // IMU axis used for longitudinal G (accel/brake).
+constexpr int kAxisVert = 1;  // IMU axis used for vertical (gravity) component.
+constexpr float kAxisLatSign = -1.0f;
 constexpr float kAxisLongSign = 1.0f;
 constexpr float kAxisVertSign = 1.0f;
 
