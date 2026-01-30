@@ -11,7 +11,6 @@ enum ReactionState {
   REACTION_COUNTDOWN,
   REACTION_READY_RANDOM,
   REACTION_WAIT_FOR_MOVE,
-  REACTION_LAP_TIMING,
   REACTION_FALSE_START
 };
 
@@ -21,9 +20,7 @@ struct ReactionUiSnapshot {
   bool greenOn;
   bool reactionCaptured;
   uint32_t reactionMs;
-  uint32_t runMs;
   uint32_t bestReactionMs;
-  uint32_t lastReactionMs;
 };
 
 typedef void (*reaction_handler_t)(void);
