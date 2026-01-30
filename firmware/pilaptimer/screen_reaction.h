@@ -20,6 +20,7 @@ struct ReactionUiSnapshot {
   bool greenOn;
   bool reactionCaptured;
   uint32_t reactionMs;
+  uint8_t armedCountdownSec;
   uint32_t bestReactionMs;
 };
 

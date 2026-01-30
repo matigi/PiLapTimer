@@ -68,8 +68,8 @@ static const uint16_t TOUCH_HOLD_MS        = 120;
 static const uint16_t BEEP_DEBOUNCE_MS     = 250;
 static const uint16_t UI_REFRESH_MS        = 250;
 static const uint16_t LVGL_UI_REFRESH_MS   = 100;
-static const uint32_t REACTION_STAGE_DELAY_MS = 500;
 static const uint32_t REACTION_AMBER_STEP_MS = 500;
+static const uint32_t REACTION_ARMED_COUNTDOWN_MS = 3000;
 static const uint32_t REACTION_RANDOM_MIN_MS = 400;
 static const uint32_t REACTION_RANDOM_MAX_MS = 1600;
 static const uint32_t REACTION_FALSE_START_LOCKOUT_MS = 2000;
@@ -793,7 +793,7 @@ static void UpdateReaction(uint32_t now) {
 
   switch (gReactionState) {
     case REACTION_ARMED:
-      if ((now - gReactionStateMs) >= REACTION_STAGE_DELAY_MS) {
+      if ((now - gReactionStateMs) >= REACTION_ARMED_COUNTDOWN_MS) {
         gReactionAmberCount = 1;
         BeepNow(note_g4, 60);
         ReactionSetState(REACTION_COUNTDOWN, now);
@@ -1189,6 +1189,16 @@ void loop() {
     reactionSnapshot.amberCount = gReactionAmberCount;
     reactionSnapshot.greenOn = (gReactionState == REACTION_WAIT_FOR_MOVE);
     reactionSnapshot.reactionCaptured = gReactionReactionCaptured;
+    if (gReactionState == REACTION_ARMED) {
+      uint32_t elapsedMs = now - gReactionStateMs;
+      uint8_t remaining = 0;
+      if (elapsedMs < REACTION_ARMED_COUNTDOWN_MS) {
+        remaining = (REACTION_ARMED_COUNTDOWN_MS - elapsedMs + 999) / 1000;
+      }
+      reactionSnapshot.armedCountdownSec = remaining;
+    } else {
+      reactionSnapshot.armedCountdownSec = 0;
+    }
     if (gReactionReactionCaptured) {
       reactionSnapshot.reactionMs = gReactionReactionMs;
     } else if (gReactionState == REACTION_WAIT_FOR_MOVE) {

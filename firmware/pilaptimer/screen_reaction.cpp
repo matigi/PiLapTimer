@@ -31,7 +31,7 @@ void set_light(lv_obj_t *light, lv_color_t color, bool on) {
   lv_obj_set_style_shadow_opa(light, on ? LV_OPA_60 : LV_OPA_TRANSP, 0);
 }
 
-void create_light_column(lv_obj_t *parent, lv_align_t align, int16_t xOffset,
+void create_light_column(lv_obj_t *parent, lv_align_t align, int16_t xOffset, int16_t yOffset,
                          lv_obj_t *amber[3], lv_obj_t **green) {
   static constexpr int kLightSize = 60;
   static constexpr int kLightCount = 4;
@@ -44,7 +44,7 @@ void create_light_column(lv_obj_t *parent, lv_align_t align, int16_t xOffset,
   lv_obj_set_flex_align(lightColumn, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER);
   lv_obj_set_style_pad_gap(lightColumn, 0, 0);
-  lv_obj_align(lightColumn, align, xOffset, -6);
+  lv_obj_align(lightColumn, align, xOffset, yOffset);
   lv_obj_clear_flag(lightColumn, LV_OBJ_FLAG_SCROLLABLE);
 
   for (int i = 0; i < 3; ++i) {
@@ -121,14 +121,14 @@ void screen_reaction_attach(lv_obj_t *parent) {
   lv_obj_set_style_text_font(refs.statusLabel, &lv_font_montserrat_24, 0);
   lv_obj_align(refs.statusLabel, LV_ALIGN_TOP_MID, 0, 44);
 
-  create_light_column(refs.root, LV_ALIGN_LEFT_MID, 16, refs.amberLeft, &refs.greenLeft);
-  create_light_column(refs.root, LV_ALIGN_RIGHT_MID, -16, refs.amberRight, &refs.greenRight);
+  create_light_column(refs.root, LV_ALIGN_LEFT_MID, 16, -24, refs.amberLeft, &refs.greenLeft);
+  create_light_column(refs.root, LV_ALIGN_RIGHT_MID, -16, -24, refs.amberRight, &refs.greenRight);
 
   refs.rtLabel = lv_label_create(refs.root);
   lv_label_set_text(refs.rtLabel, "R/T: ---.---s");
-  lv_obj_set_style_text_font(refs.rtLabel, &lv_font_montserrat_32, 0);
+  lv_obj_set_style_text_font(refs.rtLabel, &lv_font_montserrat_48, 0);
   lv_obj_set_style_text_color(refs.rtLabel, lv_color_hex(0xf5f8ff), 0);
-  lv_obj_align(refs.rtLabel, LV_ALIGN_CENTER, 0, -30);
+  lv_obj_align(refs.rtLabel, LV_ALIGN_CENTER, 0, -48);
 
   refs.bestLabel = lv_label_create(refs.root);
   lv_label_set_text(refs.bestLabel, "Best R/T: ---.---s");
@@ -156,6 +156,7 @@ void screen_reaction_attach(lv_obj_t *parent) {
   snapshot.greenOn = false;
   snapshot.reactionCaptured = false;
   snapshot.reactionMs = 0;
+  snapshot.armedCountdownSec = 0;
   snapshot.bestReactionMs = 0;
   screen_reaction_update(snapshot);
 }
@@ -206,7 +207,13 @@ void screen_reaction_update(const ReactionUiSnapshot &snapshot) {
       stateText = "FALSE START";
       break;
   }
-  lv_label_set_text(refs.statusLabel, stateText);
+  char stateLine[16];
+  if (snapshot.state == REACTION_ARMED && snapshot.armedCountdownSec > 0) {
+    snprintf(stateLine, sizeof(stateLine), "%u", (unsigned)snapshot.armedCountdownSec);
+    lv_label_set_text(refs.statusLabel, stateLine);
+  } else {
+    lv_label_set_text(refs.statusLabel, stateText);
+  }
   update_status_style(snapshot.state);
 
   char buffer[32];
