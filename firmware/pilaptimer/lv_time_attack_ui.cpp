@@ -1,5 +1,6 @@
 #include "lv_time_attack_ui.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -50,6 +51,7 @@ void (*lapsPrevHandler)() = nullptr;
 void (*lapsNextHandler)() = nullptr;
 nav_handler_t swipeLeftHandler = nullptr;
 nav_handler_t swipeRightHandler = nullptr;
+tile_change_handler_t tileChangeHandler = nullptr;
 
 lv_style_t bestRowStyle;
 
@@ -196,7 +198,21 @@ void screen_gesture_event(lv_event_t *e) {
 }
 
 void tileview_scroll_event(lv_event_t *e) {
-  LV_UNUSED(e);
+  if (lv_event_get_code(e) != LV_EVENT_VALUE_CHANGED || !tileChangeHandler) return;
+  lv_obj_t *activeTile = lv_tileview_get_tile_act(refs.tileview);
+  LvTimeAttackTile tile = LV_TIME_ATTACK_TILE_UNKNOWN;
+  if (activeTile == refs.settingsTile) {
+    tile = LV_TIME_ATTACK_TILE_SETTINGS;
+  } else if (activeTile == refs.raceTile) {
+    tile = LV_TIME_ATTACK_TILE_RACE;
+  } else if (activeTile == refs.reactionTile) {
+    tile = LV_TIME_ATTACK_TILE_REACTION;
+  } else if (activeTile == refs.gforceTile) {
+    tile = LV_TIME_ATTACK_TILE_GFORCE;
+  } else if (activeTile == refs.reviewTile) {
+    tile = LV_TIME_ATTACK_TILE_REVIEW;
+  }
+  tileChangeHandler(tile);
 }
 
 lv_obj_t *makeSpinboxRow(lv_obj_t *parent, const char *labelText,
@@ -290,6 +306,7 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_obj_set_scrollbar_mode(refs.tileview, LV_SCROLLBAR_MODE_OFF);
   lv_obj_add_event_cb(refs.tileview, tileview_scroll_event, LV_EVENT_SCROLL_BEGIN, nullptr);
   lv_obj_add_event_cb(refs.tileview, tileview_scroll_event, LV_EVENT_SCROLL_END, nullptr);
+  lv_obj_add_event_cb(refs.tileview, tileview_scroll_event, LV_EVENT_VALUE_CHANGED, nullptr);
 
   refs.settingsTile = lv_tileview_add_tile(refs.tileview, 0, 0, LV_DIR_RIGHT);
   refs.raceTile = lv_tileview_add_tile(refs.tileview, 1, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
@@ -483,6 +500,10 @@ void lv_time_attack_ui_set_swipe_right_handler(nav_handler_t cb) {
   swipeRightHandler = cb;
 }
 
+void lv_time_attack_ui_set_tile_change_handler(tile_change_handler_t cb) {
+  tileChangeHandler = cb;
+}
+
 lv_obj_t *lv_time_attack_ui_get_screen() {
   return refs.screen;
 }
@@ -572,22 +593,59 @@ void lv_time_attack_ui_update(const UiSnapshot &snapshot) {
   }
   lastLapCount = snapshot.lapCount;
 
+  uint8_t driverOrder[kMaxDrivers];
   for (uint8_t i = 0; i < kMaxDrivers; ++i) {
+    driverOrder[i] = i;
+  }
+
+  for (uint8_t i = 0; i < kMaxDrivers; ++i) {
+    for (uint8_t j = i + 1; j < kMaxDrivers; ++j) {
+      uint8_t a = driverOrder[i];
+      uint8_t b = driverOrder[j];
+      bool aValid = snapshot.driverRunValid[a];
+      bool bValid = snapshot.driverRunValid[b];
+      uint32_t aBest = snapshot.driverBestLapMs[a];
+      uint32_t bBest = snapshot.driverBestLapMs[b];
+      uint32_t aSort = (aValid && aBest > 0) ? aBest : UINT32_MAX;
+      uint32_t bSort = (bValid && bBest > 0) ? bBest : UINT32_MAX;
+
+      bool shouldSwap = false;
+      if (aValid != bValid) {
+        shouldSwap = bValid;
+      } else if (aValid && bValid) {
+        if (bSort < aSort) {
+          shouldSwap = true;
+        } else if (bSort == aSort && b < a) {
+          shouldSwap = true;
+        }
+      } else if (b < a) {
+        shouldSwap = true;
+      }
+
+      if (shouldSwap) {
+        driverOrder[i] = b;
+        driverOrder[j] = a;
+      }
+    }
+  }
+
+  for (uint8_t i = 0; i < kMaxDrivers; ++i) {
+    uint8_t driverIndex = driverOrder[i];
     uint8_t row = i + 1;
-    snprintf(line, sizeof(line), "%u", (unsigned)(i + 1));
+    snprintf(line, sizeof(line), "%u", (unsigned)(driverIndex + 1));
     lv_table_set_cell_value(refs.reportTable, row, 0, line);
-    if (snapshot.driverRunValid[i]) {
-      formatTime(timeBuf, sizeof(timeBuf), snapshot.driverTotalMs[i]);
+    if (snapshot.driverRunValid[driverIndex]) {
+      formatTime(timeBuf, sizeof(timeBuf), snapshot.driverTotalMs[driverIndex]);
       lv_table_set_cell_value(refs.reportTable, row, 1, timeBuf);
-      formatTime(timeBuf, sizeof(timeBuf), snapshot.driverBestLapMs[i]);
+      formatTime(timeBuf, sizeof(timeBuf), snapshot.driverBestLapMs[driverIndex]);
       lv_table_set_cell_value(refs.reportTable, row, 2, timeBuf);
     } else {
       lv_table_set_cell_value(refs.reportTable, row, 1, "--");
       lv_table_set_cell_value(refs.reportTable, row, 2, "--");
     }
 
-    if (snapshot.driverBestReactionMs[i] > 0) {
-      format_reaction_ms(timeBuf, sizeof(timeBuf), snapshot.driverBestReactionMs[i]);
+    if (snapshot.driverBestReactionMs[driverIndex] > 0) {
+      format_reaction_ms(timeBuf, sizeof(timeBuf), snapshot.driverBestReactionMs[driverIndex]);
       lv_table_set_cell_value(refs.reportTable, row, 3, timeBuf);
     } else {
       lv_table_set_cell_value(refs.reportTable, row, 3, "--");
