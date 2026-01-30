@@ -7,6 +7,22 @@
 #define SD_CS_PIN 23
 #endif
 
+#ifndef SD_SPI
+#define SD_SPI SPI
+#endif
+
+#ifndef SD_SPI_SCK_PIN
+#define SD_SPI_SCK_PIN -1
+#endif
+
+#ifndef SD_SPI_MOSI_PIN
+#define SD_SPI_MOSI_PIN -1
+#endif
+
+#ifndef SD_SPI_MISO_PIN
+#define SD_SPI_MISO_PIN -1
+#endif
+
 #ifndef SD_LOG_BUFFER_LINES
 #define SD_LOG_BUFFER_LINES 48
 #endif
@@ -280,21 +296,40 @@ static bool FlushLogs() {
 bool sd_logger_init() {
   if (gReady) return true;
 
-  if (!SD.begin(SD_CS_PIN)) {
-    DebugPrint("SD init failed");
+  Serial.println("SD: init start");
+  if (SD_SPI_SCK_PIN >= 0 || SD_SPI_MOSI_PIN >= 0 || SD_SPI_MISO_PIN >= 0) {
+    Serial.printf("SD: SPI pins SCK=%d MOSI=%d MISO=%d\n",
+                  SD_SPI_SCK_PIN,
+                  SD_SPI_MOSI_PIN,
+                  SD_SPI_MISO_PIN);
+#if defined(ARDUINO_ARCH_RP2040)
+    if (SD_SPI_SCK_PIN >= 0) SD_SPI.setSCK(SD_SPI_SCK_PIN);
+    if (SD_SPI_MOSI_PIN >= 0) SD_SPI.setTX(SD_SPI_MOSI_PIN);
+    if (SD_SPI_MISO_PIN >= 0) SD_SPI.setRX(SD_SPI_MISO_PIN);
+#endif
+  } else {
+    Serial.println("SD: SPI pins default");
+  }
+  SD_SPI.begin();
+  if (!SD.begin(SD_CS_PIN, SD_SPI)) {
+    Serial.printf("SD: init failed (CS pin %u)\n", (unsigned)SD_CS_PIN);
     gReady = false;
     return false;
   }
 
   if (!EnsureDir(kBaseDir)) {
-    DebugPrint("SD mkdir failed: base dir");
+    Serial.println("SD: mkdir failed (base dir)");
+    gReady = false;
+    return false;
   }
   if (!EnsureDir(kSessionsDir)) {
-    DebugPrint("SD mkdir failed: sessions dir");
+    Serial.println("SD: mkdir failed (sessions dir)");
+    gReady = false;
+    return false;
   }
 
   gReady = true;
-  DebugPrint("SD init OK");
+  Serial.println("SD: init OK");
   return true;
 }
 
