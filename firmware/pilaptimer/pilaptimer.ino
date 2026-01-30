@@ -11,6 +11,7 @@
 #include "FT3168.h"
 #include "GUI_Paint.h"
 #include "fonts.h"
+#include "screen_reaction.h"
 #include "ui_state.h"
 
 #ifndef USE_LVGL_UI
@@ -48,6 +49,10 @@ static const UWORD UI_ROTATION = ROTATE_270;
 #define TOUCH_DEBUG 0
 #endif
 
+#ifndef REACTION_DEBUG
+#define REACTION_DEBUG 0
+#endif
+
 // IMPORTANT: Do NOT use GP6/GP7 (I2C). Use GP16 (wire buzzer + to GP16, - to GND).
 static const uint8_t  BUZZER_PIN = 16;
 
@@ -62,6 +67,12 @@ static const uint16_t TOUCH_HOLD_MS        = 120;
 static const uint16_t BEEP_DEBOUNCE_MS     = 250;
 static const uint16_t UI_REFRESH_MS        = 250;
 static const uint16_t LVGL_UI_REFRESH_MS   = 100;
+static const uint32_t REACTION_STAGE_DELAY_MS = 500;
+static const uint32_t REACTION_AMBER_STEP_MS = 500;
+static const uint32_t REACTION_RANDOM_MIN_MS = 400;
+static const uint32_t REACTION_RANDOM_MAX_MS = 1600;
+static const uint32_t REACTION_FALSE_START_LOCKOUT_MS = 2000;
+static const uint32_t REACTION_ACTION_DEBOUNCE_MS = 150;
 
 static UWORD* gFrame = nullptr;
 
@@ -284,6 +295,7 @@ static void FormatTimeMaybe(char *out, size_t outSize, bool valid, uint32_t ms) 
 
 // ----------------- State -----------------
 static UiState gState = UI_BOOT;
+static ReactionState gReactionState = REACTION_IDLE;
 
 struct RunStats {
   bool valid;
@@ -313,10 +325,27 @@ static uint32_t gSessionMs = 0;
 static uint32_t gLastUiMs = 0;
 static uint32_t gLastLapTriggerMs = 0;
 static uint32_t gLastBeepMs = 0;
+static uint32_t gReactionStateMs = 0;
+static uint32_t gReactionGoMs = 0;
+static uint32_t gReactionRunMs = 0;
+static uint32_t gReactionReactionMs = 0;
+static uint32_t gReactionBestMs = 0;
+static uint32_t gReactionLastMs = 0;
+static uint32_t gReactionLastLapStartMs = 0;
+static uint32_t gReactionLastLapMs = 0;
+static uint32_t gReactionRandomDelayMs = 0;
+static uint32_t gReactionLastActionMs = 0;
+static uint8_t gReactionAmberCount = 0;
+static uint8_t gReactionLapCount = 0;
+static bool gReactionReactionCaptured = false;
+static bool gReactionModeActive = false;
+static bool gReactionActionPending = false;
 
 #if USE_LVGL_UI
 static bool gUiDirty = true;
 static uint32_t gLastLvglUiMs = 0;
+static bool gReactionUiDirty = true;
+static uint32_t gLastReactionUiMs = 0;
 #endif
 // Buttons (idle)
 static const Button BTN_DRIVER_MINUS = {UI_STEP_MINUS_X, UI_DRIVER_Y + UI_STEP_Y_OFFSET, UI_STEP_BTN, UI_STEP_BTN, "-"};
@@ -659,6 +688,184 @@ static void HandleLapsNext() {
 }
 #endif
 
+static void ReactionSetState(ReactionState state, uint32_t now) {
+  if (gReactionState == state) return;
+  gReactionState = state;
+  gReactionStateMs = now;
+#if USE_LVGL_UI
+  gReactionUiDirty = true;
+#endif
+#if REACTION_DEBUG
+  Serial.printf("REACTION state -> %d @ %lu\n", (int)state, (unsigned long)now);
+#endif
+}
+
+static void ReactionResetRunState() {
+  gReactionAmberCount = 0;
+  gReactionGoMs = 0;
+  gReactionRunMs = 0;
+  gReactionReactionMs = 0;
+  gReactionRandomDelayMs = 0;
+  gReactionLapCount = 0;
+  gReactionLastLapStartMs = 0;
+  gReactionLastLapMs = 0;
+  gReactionReactionCaptured = false;
+  gReactionActionPending = false;
+}
+
+static void ReactionArmOrReset() {
+  uint32_t now = millis();
+  ReactionSetModeActive(true);
+  if (gReactionState == REACTION_IDLE || gReactionState == REACTION_FALSE_START) {
+    ReactionResetRunState();
+    ReactionSetState(REACTION_ARMED, now);
+    gReactionStateMs = now;
+    gReactionAmberCount = 0;
+    gReactionRandomDelayMs = 0;
+    gReactionLastActionMs = now;
+    randomSeed(micros());
+  } else {
+    ReactionResetRunState();
+    ReactionSetState(REACTION_IDLE, now);
+  }
+}
+
+static void ReactionRegisterAction(uint32_t now) {
+  if ((now - gReactionLastActionMs) < REACTION_ACTION_DEBOUNCE_MS) return;
+  gReactionLastActionMs = now;
+
+  if (gReactionState == REACTION_GO_RUNNING || gReactionState == REACTION_RUN_ACTIVE) {
+    if (!gReactionReactionCaptured && gReactionGoMs > 0) {
+      gReactionReactionMs = now - gReactionGoMs;
+      gReactionLastMs = gReactionReactionMs;
+      if (gReactionBestMs == 0 || gReactionReactionMs < gReactionBestMs) {
+        gReactionBestMs = gReactionReactionMs;
+      }
+      gReactionReactionCaptured = true;
+      ReactionSetState(REACTION_RUN_ACTIVE, now);
+    }
+    return;
+  }
+
+  if (gReactionState == REACTION_ARMED ||
+      gReactionState == REACTION_COUNTDOWN ||
+      gReactionState == REACTION_READY_RANDOM) {
+    ReactionResetRunState();
+    ReactionSetState(REACTION_FALSE_START, now);
+  }
+}
+
+static void ReactionSetModeActive(bool active) {
+  gReactionModeActive = active;
+#if USE_LVGL_UI
+  gReactionUiDirty = true;
+#endif
+  if (!active) {
+    ReactionResetRunState();
+    ReactionSetState(REACTION_IDLE, millis());
+  }
+}
+
+static void UpdateReaction(uint32_t now, bool irTrigger, uint32_t irMs) {
+  if (!gReactionModeActive) return;
+
+  if (gReactionActionPending) {
+    gReactionActionPending = false;
+    ReactionRegisterAction(now);
+  }
+
+  if (irTrigger) {
+    if (gReactionState == REACTION_GO_RUNNING || gReactionState == REACTION_RUN_ACTIVE) {
+      ReactionRegisterAction(irMs);
+      if (gReactionGoMs > 0) {
+        gReactionLapCount++;
+        gReactionLastLapMs = irMs - gReactionLastLapStartMs;
+        gReactionLastLapStartMs = irMs;
+        gReactionRunMs = irMs - gReactionGoMs;
+#if REACTION_DEBUG
+        Serial.printf("REACTION lap %u time=%lu ms\n",
+                      (unsigned)gReactionLapCount,
+                      (unsigned long)gReactionLastLapMs);
+#endif
+      }
+    } else if (gReactionState == REACTION_ARMED ||
+               gReactionState == REACTION_COUNTDOWN ||
+               gReactionState == REACTION_READY_RANDOM) {
+      ReactionRegisterAction(irMs);
+    }
+  }
+
+  switch (gReactionState) {
+    case REACTION_ARMED:
+      if ((now - gReactionStateMs) >= REACTION_STAGE_DELAY_MS) {
+        gReactionAmberCount = 1;
+        ReactionSetState(REACTION_COUNTDOWN, now);
+      }
+      break;
+    case REACTION_COUNTDOWN:
+      if ((now - gReactionStateMs) >= REACTION_AMBER_STEP_MS) {
+        gReactionAmberCount++;
+        if (gReactionAmberCount >= 3) {
+          gReactionRandomDelayMs = random(REACTION_RANDOM_MIN_MS, REACTION_RANDOM_MAX_MS + 1);
+          ReactionSetState(REACTION_READY_RANDOM, now);
+        } else {
+          gReactionStateMs = now;
+#if USE_LVGL_UI
+          gReactionUiDirty = true;
+#endif
+        }
+      }
+      break;
+    case REACTION_READY_RANDOM:
+      if ((now - gReactionStateMs) >= gReactionRandomDelayMs) {
+        gReactionGoMs = now;
+        gReactionLastLapStartMs = now;
+        gReactionRunMs = 0;
+        gReactionReactionCaptured = false;
+        gReactionAmberCount = 0;
+        ReactionSetState(REACTION_GO_RUNNING, now);
+      }
+      break;
+    case REACTION_GO_RUNNING:
+    case REACTION_RUN_ACTIVE:
+      if (gReactionGoMs > 0) {
+        gReactionRunMs = now - gReactionGoMs;
+      }
+      break;
+    case REACTION_FALSE_START:
+      if ((now - gReactionStateMs) >= REACTION_FALSE_START_LOCKOUT_MS) {
+        ReactionResetRunState();
+        ReactionSetState(REACTION_IDLE, now);
+      }
+      break;
+    case REACTION_IDLE:
+    default:
+      break;
+  }
+}
+
+#if USE_LVGL_UI
+static void HandleReactionSwipeLeft() {
+  ReactionSetModeActive(false);
+  ShowMainScreen();
+}
+
+static void HandleReactionSwipeRight() {
+  ReactionSetModeActive(false);
+}
+
+static void HandleMainSwipeRight() {
+  // Prefer Reaction Race on swipe-right; Settings remains one swipe further right.
+  if (gState == UI_RUNNING) return;
+  ReactionSetModeActive(true);
+  ShowReactionScreen();
+}
+
+static void HandleReactionTap() {
+  gReactionActionPending = true;
+}
+#endif
+
 // ----------------- Arduino -----------------
 void setup() {
   Serial.begin(115200);
@@ -666,6 +873,7 @@ void setup() {
 
   Serial.println();
   Serial.println("BOOT: PiLapTimer time attack UI");
+  randomSeed(micros());
 
   if (DEV_Module_Init() != 0) Serial.println("DEV_Module_Init FAILED");
   else Serial.println("DEV_Module_Init OK");
@@ -742,11 +950,17 @@ void setup() {
                          HandleLapsPrev,
                          HandleLapsNext);
   lv_time_attack_ui_set_swipe_left_handler(ShowGForceScreen);
+  lv_time_attack_ui_set_swipe_right_handler(HandleMainSwipeRight);
+  screen_reaction_set_swipe_left_handler(HandleReactionSwipeLeft);
+  screen_reaction_set_swipe_right_handler(HandleReactionSwipeRight);
+  screen_reaction_set_action_handler(HandleReactionTap);
+  screen_reaction_set_arm_handler(ReactionArmOrReset);
   lv_obj_invalidate(lv_scr_act());
   lv_timer_handler();
 #endif
 
   gState = UI_IDLE;
+  ReactionSetModeActive(false);
   RenderState();
 }
 
@@ -815,6 +1029,7 @@ void loop() {
 #endif
   }
   uint32_t irMs = now;
+  bool irTrigger = false;
   bool signalActive = (digitalRead(IR_IN_PIN) == LOW);
   if (gIrSeen) {
     noInterrupts();
@@ -831,34 +1046,7 @@ void loop() {
       if ((now - gLastLapTriggerMs) >= LAP_LOCKOUT_MS &&
           (now - gIrLastReleaseMs) >= IR_RELEASE_MS) {
         gLastLapTriggerMs = now;
-        if (gState == UI_ARMED) {
-          Serial.println("IR: start run");
-          StartRunning(irMs);
-        } else if (gState == UI_RUNNING) {
-          gLapCount++;
-          gLastLapMs = irMs - gLastLapStartMs;
-          gLastLapStartMs = irMs;
-          gSessionMs = irMs - gStartMs;
-          const bool bestLap = (gBestLapMs == 0 || gLastLapMs < gBestLapMs);
-          if (bestLap) {
-            gBestLapMs = gLastLapMs;
-          }
-          gDeltaMs = (int32_t)gLastLapMs - (int32_t)gBestLapMs;
-
-          Serial.printf("LAP %u time=%lu ms\n", (unsigned)gLapCount, (unsigned long)gLastLapMs);
-
-          if ((irMs - gLastBeepMs) >= BEEP_DEBOUNCE_MS) {
-            BeepLap(bestLap);
-            gLastBeepMs = irMs;
-          }
-
-          if (gLapCount >= gSelectedLaps) {
-            BeepComplete();
-            FinishRun(irMs);
-          } else {
-            RenderState();
-          }
-        }
+        irTrigger = true;
       }
       gIrActive = true;
     }
@@ -874,6 +1062,39 @@ void loop() {
   } else {
     gIrReleaseStartMs = 0;
   }
+
+  if (irTrigger && !gReactionModeActive) {
+    if (gState == UI_ARMED) {
+      Serial.println("IR: start run");
+      StartRunning(irMs);
+    } else if (gState == UI_RUNNING) {
+      gLapCount++;
+      gLastLapMs = irMs - gLastLapStartMs;
+      gLastLapStartMs = irMs;
+      gSessionMs = irMs - gStartMs;
+      const bool bestLap = (gBestLapMs == 0 || gLastLapMs < gBestLapMs);
+      if (bestLap) {
+        gBestLapMs = gLastLapMs;
+      }
+      gDeltaMs = (int32_t)gLastLapMs - (int32_t)gBestLapMs;
+
+      Serial.printf("LAP %u time=%lu ms\n", (unsigned)gLapCount, (unsigned long)gLastLapMs);
+
+      if ((irMs - gLastBeepMs) >= BEEP_DEBOUNCE_MS) {
+        BeepLap(bestLap);
+        gLastBeepMs = irMs;
+      }
+
+      if (gLapCount >= gSelectedLaps) {
+        BeepComplete();
+        FinishRun(irMs);
+      } else {
+        RenderState();
+      }
+    }
+  }
+
+  UpdateReaction(now, irTrigger, irMs);
 
   if (gState == UI_RUNNING) {
     gSessionMs = now - gStartMs;
@@ -911,6 +1132,23 @@ void loop() {
       snapshot.currentLapMs = 0;
     }
     lv_time_attack_ui_update(snapshot);
+  }
+
+  if (gReactionModeActive &&
+      (gReactionUiDirty || (uint32_t)(now - gLastReactionUiMs) >= LVGL_UI_REFRESH_MS)) {
+    gLastReactionUiMs = now;
+    gReactionUiDirty = false;
+    ReactionUiSnapshot reactionSnapshot{};
+    reactionSnapshot.state = gReactionState;
+    reactionSnapshot.amberCount = gReactionAmberCount;
+    reactionSnapshot.greenOn = (gReactionState == REACTION_GO_RUNNING ||
+                                gReactionState == REACTION_RUN_ACTIVE);
+    reactionSnapshot.reactionCaptured = gReactionReactionCaptured;
+    reactionSnapshot.reactionMs = gReactionReactionMs;
+    reactionSnapshot.runMs = gReactionRunMs;
+    reactionSnapshot.bestReactionMs = gReactionBestMs;
+    reactionSnapshot.lastReactionMs = gReactionLastMs;
+    screen_reaction_update(reactionSnapshot);
   }
 #endif
 
