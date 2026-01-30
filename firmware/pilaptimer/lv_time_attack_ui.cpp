@@ -425,7 +425,7 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_table_set_col_width(refs.reportTable, 1, 140);
   lv_table_set_col_width(refs.reportTable, 2, 120);
   lv_table_set_col_width(refs.reportTable, 3, 100);
-  lv_obj_set_style_text_font(refs.reportTable, &lv_font_montserrat_16, 0);
+  lv_obj_set_style_text_font(refs.reportTable, &lv_font_montserrat_20, 0);
   lv_obj_set_style_border_width(refs.reportTable, 0, 0);
   lv_obj_set_style_bg_color(refs.reportTable, lv_color_hex(0x000000), 0);
   lv_obj_set_style_bg_opa(refs.reportTable, LV_OPA_TRANSP, 0);
