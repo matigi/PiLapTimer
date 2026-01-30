@@ -1,11 +1,12 @@
 ## Project Status
 
-**Current Phase:** Recovery – Touch + Beeper Baseline  
-**Current Milestone:** hw-m05-touch-beeper-ok
+**Current Phase:** Post hw-m06 polish + data logging  
+**Current Milestone:** hw-m06 (complete) → Milestone 8 (SD logging)
 
-Milestones 1–4 (Display bring-up, IR detection, basic lap timing) were complete,
-but the current focus is restoring a reliable touch + beeper baseline before
-reintroducing lap timing and session UX.
+Milestones 1–6 are complete, including the Phase 2 time-attack flow and UI
+rotation polish. Current work centers on SD-backed session logging and
+hardening the telemetry utilities (reaction/g-force screens) before moving into
+IMU data capture.
 
 For detailed milestone tracking, see:
 docs/PROJECT_STATUS.md
@@ -23,6 +24,12 @@ Tag: `pilaptimer-touch-stable-v1`
 - Touch coordinates accurate
 
 This tag represents the last known-good hardware integration baseline.
+
+## Recent Progress
+
+- SD card session logging for laps and reaction-time events, including summary
+  files under `/PILAPTIMER/SESSIONS`.
+- G-force monitor tile polish (axis orientation fix + smoother dot response).
 
 ## Specification Hierarchy
 

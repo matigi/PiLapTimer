@@ -1,6 +1,6 @@
 # PiLapTimer – Project Status
 
-Last updated: time-attack UI rotation + readability polish
+Last updated: SD session logging + g-force monitor polish
 
 # Project Status (Authoritative)
 
@@ -19,6 +19,8 @@ The README provides a high-level summary only.
 - IR lap detection starts runs, records laps, and finishes at target laps
 - Buzzer beeps on lap events and completion
 - Display stays stable with full UI flow
+- SD sessions created under `/PILAPTIMER/SESSIONS` with lap + reaction logs
+- G-force monitor tile responds smoothly with corrected axis orientation
 
 Verified via:
 - Serial logs
@@ -46,11 +48,12 @@ Verified via:
 
 ## Current Focus
 
-Current focus is **post-hw-m06 polish + next milestone planning**.
+Current focus is **post-hw-m06 polish + SD logging validation**.
 
 Specifically:
 - Maintain UI stability and readability
-- Capture any remaining UX tweaks before moving to storage/wireless milestones
+- Validate SD session logging on target hardware
+- Capture any remaining UX tweaks before moving to IMU logging + wireless milestones
 
 ---
 
@@ -63,6 +66,6 @@ Specifically:
 
 ## Not Started Yet
 
+- IMU data logging to SD (Milestone 9)
 - Wireless ESP32 integration
-- Data storage
 - Multi-kart support
