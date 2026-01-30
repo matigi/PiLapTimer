@@ -334,6 +334,13 @@ static void FormatTimeMaybe(char *out, size_t outSize, bool valid, uint32_t ms) 
   FormatTime(out, outSize, ms);
 }
 
+static uint32_t ElapsedSince(uint32_t now, uint32_t startMs) {
+  if (now < startMs) {
+    return 0;
+  }
+  return now - startMs;
+}
+
 // ----------------- State -----------------
 static UiState gState = UI_BOOT;
 static ReactionState gReactionState = REACTION_IDLE;
@@ -494,7 +501,8 @@ static void DrawRunningScreen() {
   DrawCenteredText(UI_MARGIN, UI_SECTION_Y + 20, LOGICAL_W - (UI_MARGIN * 2), 34, line, &Font24, YELLOW, BLACK);
 
   uint32_t now = millis();
-  uint32_t currentLapMs = (gLapCount == 0) ? (now - gStartMs) : (now - gLastLapStartMs);
+  uint32_t currentLapMs = (gLapCount == 0) ? ElapsedSince(now, gStartMs)
+                                           : ElapsedSince(now, gLastLapStartMs);
   char timeBuf[24];
   FormatTime(timeBuf, sizeof(timeBuf), currentLapMs);
   DrawValueBox(UI_MARGIN, UI_SECTION_Y + 56, LOGICAL_W - (UI_MARGIN * 2), 46, timeBuf);
@@ -650,7 +658,7 @@ static void StartRunning(uint32_t now) {
 }
 
 static void FinishRun(uint32_t now) {
-  gSessionMs = now - gStartMs;
+  gSessionMs = ElapsedSince(now, gStartMs);
 
   RunStats &run = gDriverRuns[gSelectedDriver - 1];
   run.valid = true;
@@ -1182,9 +1190,9 @@ void loop() {
       StartRunning(irMs);
     } else if (gState == UI_RUNNING) {
       gLapCount++;
-      gLastLapMs = irMs - gLastLapStartMs;
+      gLastLapMs = ElapsedSince(irMs, gLastLapStartMs);
       gLastLapStartMs = irMs;
-      gSessionMs = irMs - gStartMs;
+      gSessionMs = ElapsedSince(irMs, gStartMs);
       const bool bestLap = (gBestLapMs == 0 || gLastLapMs < gBestLapMs);
       if (bestLap) {
         gBestLapMs = gLastLapMs;
@@ -1215,7 +1223,7 @@ void loop() {
   UpdateReaction(now);
 
   if (gState == UI_RUNNING) {
-    gSessionMs = now - gStartMs;
+    gSessionMs = ElapsedSince(now, gStartMs);
 #if !USE_LVGL_UI
     if ((uint32_t)(now - gLastUiMs) >= UI_REFRESH_MS) {
       gLastUiMs = now;
@@ -1245,7 +1253,9 @@ void loop() {
           (gDriverBestReactionMs[i] == kNoReactionMs) ? 0 : gDriverBestReactionMs[i];
     }
     if (gState == UI_RUNNING) {
-      snapshot.currentLapMs = (gLapCount == 0) ? (now - gStartMs) : (now - gLastLapStartMs);
+      snapshot.currentLapMs = (gLapCount == 0)
+                                   ? ElapsedSince(now, gStartMs)
+                                   : ElapsedSince(now, gLastLapStartMs);
     } else if (gState == UI_FINISHED) {
       snapshot.currentLapMs = gLastLapMs;
     } else {
