@@ -32,6 +32,16 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
 typedef void (*nav_handler_t)(void);
 void lv_time_attack_ui_set_swipe_left_handler(nav_handler_t cb);
 void lv_time_attack_ui_set_swipe_right_handler(nav_handler_t cb);
+enum LvTimeAttackTile {
+  LV_TIME_ATTACK_TILE_SETTINGS,
+  LV_TIME_ATTACK_TILE_RACE,
+  LV_TIME_ATTACK_TILE_REACTION,
+  LV_TIME_ATTACK_TILE_GFORCE,
+  LV_TIME_ATTACK_TILE_REVIEW,
+  LV_TIME_ATTACK_TILE_UNKNOWN
+};
+typedef void (*tile_change_handler_t)(LvTimeAttackTile tile);
+void lv_time_attack_ui_set_tile_change_handler(tile_change_handler_t cb);
 void lv_time_attack_ui_show_race_tile();
 void lv_time_attack_ui_show_reaction_tile();
 void lv_time_attack_ui_show_settings_tile();

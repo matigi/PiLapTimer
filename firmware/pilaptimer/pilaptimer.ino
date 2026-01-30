@@ -944,6 +944,10 @@ static void HandleReactionSwipeRight() {
   ShowMainScreen();
 }
 
+static void HandleTileChange(LvTimeAttackTile tile) {
+  ReactionSetModeActive(tile == LV_TIME_ATTACK_TILE_REACTION);
+}
+
 static void HandleMainSwipeLeft() {
   if (gState == UI_RUNNING) return;
   ReactionSetModeActive(true);
@@ -1051,6 +1055,7 @@ void setup() {
                          HandleLapsNext);
   lv_time_attack_ui_set_swipe_left_handler(HandleMainSwipeLeft);
   lv_time_attack_ui_set_swipe_right_handler(HandleMainSwipeRight);
+  lv_time_attack_ui_set_tile_change_handler(HandleTileChange);
   screen_reaction_set_swipe_left_handler(HandleReactionSwipeLeft);
   screen_reaction_set_swipe_right_handler(HandleReactionSwipeRight);
   screen_reaction_set_action_handler(HandleReactionTap);
