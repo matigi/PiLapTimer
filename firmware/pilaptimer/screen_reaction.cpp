@@ -61,6 +61,7 @@ void on_root_event(lv_event_t *e) {
   }
 
   if (lv_event_get_code(e) == LV_EVENT_CLICKED && actionHandler) {
+    if (lv_event_get_target(e) != refs.root) return;
     actionHandler();
   }
 }
@@ -98,7 +99,7 @@ void screen_reaction_attach(lv_obj_t *parent) {
   lv_obj_set_flex_flow(lightColumn, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_flex_align(lightColumn, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER);
-  lv_obj_align(lightColumn, LV_ALIGN_CENTER, 0, -10);
+  lv_obj_align(lightColumn, LV_ALIGN_RIGHT_MID, -20, -6);
   lv_obj_clear_flag(lightColumn, LV_OBJ_FLAG_SCROLLABLE);
 
   for (int i = 0; i < 3; ++i) {
