@@ -88,7 +88,7 @@ void screen_reaction_attach(lv_obj_t *parent) {
 
   refs.statusLabel = lv_label_create(refs.root);
   lv_label_set_text(refs.statusLabel, "IDLE");
-  lv_obj_set_style_text_font(refs.statusLabel, &lv_font_montserrat_28, 0);
+  lv_obj_set_style_text_font(refs.statusLabel, &lv_font_montserrat_24, 0);
   lv_obj_align(refs.statusLabel, LV_ALIGN_TOP_MID, 0, 44);
 
   lv_obj_t *lightColumn = lv_obj_create(refs.root);
@@ -151,7 +151,16 @@ void screen_reaction_attach(lv_obj_t *parent) {
   lv_obj_set_style_text_font(refs.armLabel, &lv_font_montserrat_24, 0);
   lv_obj_center(refs.armLabel);
 
-  screen_reaction_update({REACTION_IDLE, 0, false, false, 0, 0, 0, 0});
+  ReactionUiSnapshot snapshot{};
+  snapshot.state = REACTION_IDLE;
+  snapshot.amberCount = 0;
+  snapshot.greenOn = false;
+  snapshot.reactionCaptured = false;
+  snapshot.reactionMs = 0;
+  snapshot.runMs = 0;
+  snapshot.bestReactionMs = 0;
+  snapshot.lastReactionMs = 0;
+  screen_reaction_update(snapshot);
 }
 
 void screen_reaction_set_swipe_left_handler(reaction_handler_t cb) {
