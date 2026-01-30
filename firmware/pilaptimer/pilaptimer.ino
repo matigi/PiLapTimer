@@ -888,18 +888,23 @@ static void UpdateReaction(uint32_t now) {
 #if USE_LVGL_UI
 static void HandleReactionSwipeLeft() {
   ReactionSetModeActive(false);
-  ShowMainScreen();
+  ShowGForceScreen();
 }
 
 static void HandleReactionSwipeRight() {
   ReactionSetModeActive(false);
+  ShowMainScreen();
 }
 
-static void HandleMainSwipeRight() {
-  // Prefer Reaction Race on swipe-right; Settings remains one swipe further right.
+static void HandleMainSwipeLeft() {
   if (gState == UI_RUNNING) return;
   ReactionSetModeActive(true);
   ShowReactionScreen();
+}
+
+static void HandleMainSwipeRight() {
+  if (gState == UI_RUNNING) return;
+  lv_time_attack_ui_show_settings_tile();
 }
 
 static void HandleReactionTap() {
@@ -990,7 +995,7 @@ void setup() {
                          HandleDriverNext,
                          HandleLapsPrev,
                          HandleLapsNext);
-  lv_time_attack_ui_set_swipe_left_handler(ShowGForceScreen);
+  lv_time_attack_ui_set_swipe_left_handler(HandleMainSwipeLeft);
   lv_time_attack_ui_set_swipe_right_handler(HandleMainSwipeRight);
   screen_reaction_set_swipe_left_handler(HandleReactionSwipeLeft);
   screen_reaction_set_swipe_right_handler(HandleReactionSwipeRight);
