@@ -247,6 +247,7 @@ Present live timing data on the display.
 ---
 
 ## Milestone 8 – SD Card Initialization & Logging
+**Status: COMPLETE**
 
 ### Objective
 Persist session data to removable storage.
@@ -262,8 +263,12 @@ Persist session data to removable storage.
 
 ### Definition of Done
 - Session directory created:
-  /sessions/session_YYYYMMDD_HHMM/
-- laps.csv written successfully
+  `/PILAPTIMER/SESSIONS/S<ID>/`
+- `laps.csv` written successfully
+
+Completed implementation details:
+- Session directories created under `/PILAPTIMER/SESSIONS/S<ID>`
+- `laps.csv`, `reaction.csv`, `all_events.csv`, and `summary.txt` emitted per session
 
 ---
 

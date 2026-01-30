@@ -3,6 +3,11 @@
 All notable changes to this project are documented in this file.
 
 ## [Unreleased]
+### Added
+- SD card session logging for lap and reaction events, including per-session summaries under `/PILAPTIMER/SESSIONS`.
+
+### Changed
+- G-force monitor tile response smoothing and axis orientation mapping.
 
 ## [0.2.0] - 2026-01-29
 
