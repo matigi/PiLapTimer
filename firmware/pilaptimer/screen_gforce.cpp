@@ -15,6 +15,8 @@ constexpr float kGravityMs2 = 9.80665f;
 constexpr uint32_t kCalibrationMs = 800;
 constexpr float kGravityAlpha = 0.02f;
 constexpr float kSmoothingAlpha = 0.25f;
+constexpr float kSmoothingAlphaStill = 0.6f;
+constexpr float kStillThreshold = 0.05f;
 constexpr float kPeakEpsilon = 0.01f;
 constexpr uint32_t kUpdateMs = 30;
 
@@ -26,9 +28,9 @@ constexpr int32_t kSmallTickLength = 6;
 // Axis mapping for the installed PCB orientation.
 // Adjust these indexes/signs after a real-world test if forward/left do not match.
 constexpr int kAxisLat = 0;   // IMU axis used for lateral G (left/right).
-constexpr int kAxisLong = 1;  // IMU axis used for longitudinal G (accel/brake).
-constexpr int kAxisVert = 2;  // IMU axis used for vertical (gravity) component.
-constexpr float kAxisLatSign = 1.0f;
+constexpr int kAxisLong = 2;  // IMU axis used for longitudinal G (accel/brake).
+constexpr int kAxisVert = 1;  // IMU axis used for vertical (gravity) component.
+constexpr float kAxisLatSign = -1.0f;
 constexpr float kAxisLongSign = 1.0f;
 constexpr float kAxisVertSign = 1.0f;
 
@@ -197,8 +199,10 @@ void update_timer_cb(lv_timer_t *timer) {
   float gLat = linX / kGravityMs2;
   float gLong = linY / kGravityMs2;
 
-  state.filtered[0] = state.filtered[0] + kSmoothingAlpha * (gLat - state.filtered[0]);
-  state.filtered[1] = state.filtered[1] + kSmoothingAlpha * (gLong - state.filtered[1]);
+  float alphaLat = (fabsf(gLat) < kStillThreshold) ? kSmoothingAlphaStill : kSmoothingAlpha;
+  float alphaLong = (fabsf(gLong) < kStillThreshold) ? kSmoothingAlphaStill : kSmoothingAlpha;
+  state.filtered[0] = state.filtered[0] + alphaLat * (gLat - state.filtered[0]);
+  state.filtered[1] = state.filtered[1] + alphaLong * (gLong - state.filtered[1]);
 
   float dispLat = clampf(state.filtered[0], -2.0f, 2.0f);
   float dispLong = clampf(state.filtered[1], -2.0f, 2.0f);
