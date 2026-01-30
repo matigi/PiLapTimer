@@ -427,8 +427,14 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_table_set_col_width(refs.reportTable, 3, 100);
   lv_obj_set_style_text_font(refs.reportTable, &lv_font_montserrat_14, 0);
   lv_obj_set_style_border_width(refs.reportTable, 0, 0);
-  lv_obj_set_style_bg_color(refs.reportTable, lv_color_hex(0x0f151d), 0);
+  lv_obj_set_style_bg_color(refs.reportTable, lv_color_hex(0x000000), 0);
   lv_obj_set_style_bg_opa(refs.reportTable, LV_OPA_COVER, 0);
+  lv_obj_set_style_text_color(refs.reportTable, lv_color_hex(0xffffff), 0);
+  lv_obj_set_style_text_color(refs.reportTable, lv_color_hex(0xffffff), LV_PART_ITEMS);
+  lv_obj_set_style_bg_color(refs.reportTable, lv_color_hex(0x000000), LV_PART_ITEMS);
+  lv_obj_set_style_bg_opa(refs.reportTable, LV_OPA_COVER, LV_PART_ITEMS);
+  lv_obj_set_style_border_width(refs.reportTable, 1, LV_PART_ITEMS);
+  lv_obj_set_style_border_color(refs.reportTable, lv_color_hex(0xffffff), LV_PART_ITEMS);
   lv_table_set_cell_value(refs.reportTable, 0, 0, "DRV");
   lv_table_set_cell_value(refs.reportTable, 0, 1, "BEST TOTAL");
   lv_table_set_cell_value(refs.reportTable, 0, 2, "BEST LAP");
