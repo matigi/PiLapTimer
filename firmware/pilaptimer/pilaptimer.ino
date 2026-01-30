@@ -86,9 +86,32 @@ static const float REACTION_GRAVITY_MS2 = 9.80665f;
 
 static UWORD* gFrame = nullptr;
 
+static inline uint16_t bswap16(uint16_t v) {
+  return (uint16_t)((v << 8) | (v >> 8));
+}
+
 static void ShowBootSplashImage() {
-  AMOLED_1IN64_Display((UWORD*)boot_splash_v4_rgb565);
+  const size_t splash_pixels = (size_t)DISP_W * (size_t)DISP_H;
+  UWORD* splash_frame = (UWORD*)malloc(splash_pixels * sizeof(UWORD));
+  if (!splash_frame) {
+    AMOLED_1IN64_Display((UWORD*)boot_splash_v4_rgb565);
+    delay(2000);
+    return;
+  }
+
+  for (uint16_t y = 0; y < DISP_H; ++y) {
+    const uint16_t src_y = (uint16_t)(DISP_H - 1 - y);
+    for (uint16_t x = 0; x < DISP_W; ++x) {
+      const uint16_t src_x = (uint16_t)(DISP_W - 1 - x);
+      const size_t src_index = (size_t)src_y * DISP_W + src_x;
+      const size_t dst_index = (size_t)y * DISP_W + x;
+      splash_frame[dst_index] = bswap16(boot_splash_v4_rgb565[src_index]);
+    }
+  }
+
+  AMOLED_1IN64_Display(splash_frame);
   delay(2000);
+  free(splash_frame);
 }
 
 // ----------------- UI helpers -----------------
