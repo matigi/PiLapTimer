@@ -33,6 +33,7 @@ void lv_time_attack_ui_set_swipe_left_handler(nav_handler_t cb);
 void lv_time_attack_ui_set_swipe_right_handler(nav_handler_t cb);
 void lv_time_attack_ui_show_race_tile();
 void lv_time_attack_ui_show_reaction_tile();
+void lv_time_attack_ui_show_settings_tile();
 void lv_time_attack_ui_show_gforce_tile();
 void lv_time_attack_ui_update(const UiSnapshot &snapshot);
 lv_obj_t *lv_time_attack_ui_get_screen();
