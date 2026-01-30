@@ -40,6 +40,7 @@ void create_light_column(lv_obj_t *parent, lv_align_t align, int16_t xOffset, in
   lv_obj_set_size(lightColumn, kLightSize, kLightSize * kLightCount);
   lv_obj_set_style_bg_opa(lightColumn, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(lightColumn, 0, 0);
+  lv_obj_set_style_pad_all(lightColumn, 0, 0);
   lv_obj_set_flex_flow(lightColumn, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_flex_align(lightColumn, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
                         LV_FLEX_ALIGN_CENTER);
