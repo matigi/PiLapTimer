@@ -11,8 +11,10 @@ struct ReactionRefs {
   lv_obj_t *bestLabel;
   lv_obj_t *armBtn;
   lv_obj_t *armLabel;
-  lv_obj_t *amber[3];
-  lv_obj_t *green;
+  lv_obj_t *amberLeft[3];
+  lv_obj_t *greenLeft;
+  lv_obj_t *amberRight[3];
+  lv_obj_t *greenRight;
 };
 
 ReactionRefs refs{};
@@ -27,6 +29,35 @@ void set_light(lv_obj_t *light, lv_color_t color, bool on) {
   lv_obj_set_style_shadow_color(light, color, 0);
   lv_obj_set_style_shadow_width(light, on ? 24 : 0, 0);
   lv_obj_set_style_shadow_opa(light, on ? LV_OPA_60 : LV_OPA_TRANSP, 0);
+}
+
+void create_light_column(lv_obj_t *parent, lv_align_t align, int16_t xOffset,
+                         lv_obj_t *amber[3], lv_obj_t **green) {
+  static constexpr int kLightSize = 60;
+  static constexpr int kLightCount = 4;
+
+  lv_obj_t *lightColumn = lv_obj_create(parent);
+  lv_obj_set_size(lightColumn, kLightSize, kLightSize * kLightCount);
+  lv_obj_set_style_bg_opa(lightColumn, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(lightColumn, 0, 0);
+  lv_obj_set_flex_flow(lightColumn, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(lightColumn, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_gap(lightColumn, 0, 0);
+  lv_obj_align(lightColumn, align, xOffset, -6);
+  lv_obj_clear_flag(lightColumn, LV_OBJ_FLAG_SCROLLABLE);
+
+  for (int i = 0; i < 3; ++i) {
+    amber[i] = lv_obj_create(lightColumn);
+    lv_obj_set_size(amber[i], kLightSize, kLightSize);
+    lv_obj_set_style_radius(amber[i], LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_border_width(amber[i], 0, 0);
+  }
+
+  *green = lv_obj_create(lightColumn);
+  lv_obj_set_size(*green, kLightSize, kLightSize);
+  lv_obj_set_style_radius(*green, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_border_width(*green, 0, 0);
 }
 
 void update_status_style(ReactionState state) {
@@ -90,39 +121,20 @@ void screen_reaction_attach(lv_obj_t *parent) {
   lv_obj_set_style_text_font(refs.statusLabel, &lv_font_montserrat_24, 0);
   lv_obj_align(refs.statusLabel, LV_ALIGN_TOP_MID, 0, 44);
 
-  lv_obj_t *lightColumn = lv_obj_create(refs.root);
-  lv_obj_set_size(lightColumn, 120, 260);
-  lv_obj_set_style_bg_opa(lightColumn, LV_OPA_TRANSP, 0);
-  lv_obj_set_style_border_width(lightColumn, 0, 0);
-  lv_obj_set_flex_flow(lightColumn, LV_FLEX_FLOW_COLUMN);
-  lv_obj_set_flex_align(lightColumn, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER,
-                        LV_FLEX_ALIGN_CENTER);
-  lv_obj_align(lightColumn, LV_ALIGN_RIGHT_MID, -20, -6);
-  lv_obj_clear_flag(lightColumn, LV_OBJ_FLAG_SCROLLABLE);
-
-  for (int i = 0; i < 3; ++i) {
-    refs.amber[i] = lv_obj_create(lightColumn);
-    lv_obj_set_size(refs.amber[i], 70, 70);
-    lv_obj_set_style_radius(refs.amber[i], LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_border_width(refs.amber[i], 0, 0);
-  }
-
-  refs.green = lv_obj_create(lightColumn);
-  lv_obj_set_size(refs.green, 70, 70);
-  lv_obj_set_style_radius(refs.green, LV_RADIUS_CIRCLE, 0);
-  lv_obj_set_style_border_width(refs.green, 0, 0);
+  create_light_column(refs.root, LV_ALIGN_LEFT_MID, 16, refs.amberLeft, &refs.greenLeft);
+  create_light_column(refs.root, LV_ALIGN_RIGHT_MID, -16, refs.amberRight, &refs.greenRight);
 
   refs.rtLabel = lv_label_create(refs.root);
-  lv_label_set_text(refs.rtLabel, "R/T time: ---.---s");
+  lv_label_set_text(refs.rtLabel, "R/T: ---.---s");
   lv_obj_set_style_text_font(refs.rtLabel, &lv_font_montserrat_32, 0);
   lv_obj_set_style_text_color(refs.rtLabel, lv_color_hex(0xf5f8ff), 0);
-  lv_obj_align(refs.rtLabel, LV_ALIGN_BOTTOM_MID, 0, -90);
+  lv_obj_align(refs.rtLabel, LV_ALIGN_CENTER, 0, -30);
 
   refs.bestLabel = lv_label_create(refs.root);
   lv_label_set_text(refs.bestLabel, "Best R/T: ---.---s");
   lv_obj_set_style_text_font(refs.bestLabel, &lv_font_montserrat_20, 0);
   lv_obj_set_style_text_color(refs.bestLabel, lv_color_hex(0x8fa0b6), 0);
-  lv_obj_align(refs.bestLabel, LV_ALIGN_BOTTOM_MID, 0, -56);
+  lv_obj_align(refs.bestLabel, LV_ALIGN_CENTER, 0, 6);
 
   refs.armBtn = lv_btn_create(refs.root);
   lv_obj_set_size(refs.armBtn, 200, 56);
@@ -167,9 +179,11 @@ void screen_reaction_set_arm_handler(reaction_handler_t cb) {
 void screen_reaction_update(const ReactionUiSnapshot &snapshot) {
   const lv_color_t amberColor = lv_color_hex(0xffc857);
   for (int i = 0; i < 3; ++i) {
-    set_light(refs.amber[i], amberColor, snapshot.amberCount > i);
+    set_light(refs.amberLeft[i], amberColor, snapshot.amberCount > i);
+    set_light(refs.amberRight[i], amberColor, snapshot.amberCount > i);
   }
-  set_light(refs.green, lv_color_hex(0x3ddc97), snapshot.greenOn);
+  set_light(refs.greenLeft, lv_color_hex(0x3ddc97), snapshot.greenOn);
+  set_light(refs.greenRight, lv_color_hex(0x3ddc97), snapshot.greenOn);
 
   const char *stateText = "IDLE";
   switch (snapshot.state) {
@@ -199,10 +213,10 @@ void screen_reaction_update(const ReactionUiSnapshot &snapshot) {
   if (snapshot.reactionCaptured || snapshot.state == REACTION_WAIT_FOR_MOVE) {
     format_ms(buffer, sizeof(buffer), snapshot.reactionMs);
     char line[40];
-    snprintf(line, sizeof(line), "R/T time: %s", buffer);
+    snprintf(line, sizeof(line), "R/T: %s", buffer);
     lv_label_set_text(refs.rtLabel, line);
   } else {
-    lv_label_set_text(refs.rtLabel, "R/T time: ---.---s");
+    lv_label_set_text(refs.rtLabel, "R/T: ---.---s");
   }
 
   if (snapshot.bestReactionMs > 0) {
