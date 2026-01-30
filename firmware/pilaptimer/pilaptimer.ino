@@ -654,6 +654,9 @@ static void StartRunning(uint32_t now) {
   gSessionMs = 0;
   gState = UI_RUNNING;
   gLastUiMs = 0;
+#if USE_LVGL_UI
+  gLastLvglUiMs = 0;
+#endif
   RenderState();
 }
 

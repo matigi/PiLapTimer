@@ -430,7 +430,7 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_obj_clear_flag(reviewContainer, LV_OBJ_FLAG_SCROLLABLE);
 
   lv_obj_t *reportTitle = lv_label_create(reviewContainer);
-  lv_label_set_text(reportTitle, "REPORTING");
+  lv_label_set_text(reportTitle, "LEADERBOARD");
   lv_obj_set_style_text_color(reportTitle, lv_color_hex(0x8fa0b6), 0);
   lv_obj_set_style_text_font(reportTitle, &lv_font_montserrat_20, 0);
 
