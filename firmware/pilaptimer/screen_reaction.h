@@ -1,6 +1,8 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
+#include <stdio.h>
 
 struct _lv_obj_t;
 typedef struct _lv_obj_t lv_obj_t;
@@ -25,6 +27,12 @@ struct ReactionUiSnapshot {
 };
 
 typedef void (*reaction_handler_t)(void);
+
+inline void format_reaction_ms(char *out, size_t size, uint32_t ms) {
+  if (size == 0) return;
+  float seconds = (float)ms / 1000.0f;
+  snprintf(out, size, "%0.3fs", (double)seconds);
+}
 
 void screen_reaction_attach(lv_obj_t *parent);
 void screen_reaction_set_swipe_left_handler(reaction_handler_t cb);

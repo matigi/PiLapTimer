@@ -419,11 +419,12 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
 
   refs.reportTable = lv_table_create(reviewContainer);
   lv_obj_set_size(refs.reportTable, 420, 210);
-  lv_table_set_col_cnt(refs.reportTable, 3);
+  lv_table_set_col_cnt(refs.reportTable, 4);
   lv_table_set_row_cnt(refs.reportTable, kMaxDrivers + 1);
-  lv_table_set_col_width(refs.reportTable, 0, 70);
-  lv_table_set_col_width(refs.reportTable, 1, 180);
-  lv_table_set_col_width(refs.reportTable, 2, 160);
+  lv_table_set_col_width(refs.reportTable, 0, 60);
+  lv_table_set_col_width(refs.reportTable, 1, 140);
+  lv_table_set_col_width(refs.reportTable, 2, 120);
+  lv_table_set_col_width(refs.reportTable, 3, 100);
   lv_obj_set_style_text_font(refs.reportTable, &lv_font_montserrat_14, 0);
   lv_obj_set_style_border_width(refs.reportTable, 0, 0);
   lv_obj_set_style_bg_color(refs.reportTable, lv_color_hex(0x0f151d), 0);
@@ -431,6 +432,7 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_table_set_cell_value(refs.reportTable, 0, 0, "DRV");
   lv_table_set_cell_value(refs.reportTable, 0, 1, "BEST TOTAL");
   lv_table_set_cell_value(refs.reportTable, 0, 2, "BEST LAP");
+  lv_table_set_cell_value(refs.reportTable, 0, 3, "BEST RT");
 
   // Settings tile
   lv_obj_t *settingsTitle = lv_label_create(refs.settingsTile);
@@ -576,6 +578,13 @@ void lv_time_attack_ui_update(const UiSnapshot &snapshot) {
     } else {
       lv_table_set_cell_value(refs.reportTable, row, 1, "--");
       lv_table_set_cell_value(refs.reportTable, row, 2, "--");
+    }
+
+    if (snapshot.driverBestReactionMs[i] > 0) {
+      format_reaction_ms(timeBuf, sizeof(timeBuf), snapshot.driverBestReactionMs[i]);
+      lv_table_set_cell_value(refs.reportTable, row, 3, timeBuf);
+    } else {
+      lv_table_set_cell_value(refs.reportTable, row, 3, "--");
     }
   }
 }
