@@ -16,6 +16,8 @@
 #include "screen_reaction.h"
 #include "ui_state.h"
 
+#include "boot_splash_v3_280x456_rgb565.h"
+
 #ifndef USE_LVGL_UI
 #define USE_LVGL_UI 1
 #endif
@@ -84,6 +86,10 @@ static const float REACTION_GRAVITY_MS2 = 9.80665f;
 
 static UWORD* gFrame = nullptr;
 
+static void ShowBootSplashImage() {
+  AMOLED_1IN64_Display((UWORD*)boot_splash_v3_rgb565);
+  delay(2000);
+}
 
 // ----------------- UI helpers -----------------
 struct Button {
@@ -950,6 +956,7 @@ void setup() {
   AMOLED_1IN64_Init();
   AMOLED_1IN64_SetBrightness(100);
   AMOLED_1IN64_Clear(WHITE);
+  ShowBootSplashImage();
 
   Serial.printf("Display WIDTH=%u HEIGHT=%u\n", (unsigned)AMOLED_1IN64.WIDTH, (unsigned)AMOLED_1IN64.HEIGHT);
 
