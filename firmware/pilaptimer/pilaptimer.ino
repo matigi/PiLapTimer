@@ -1,6 +1,7 @@
 #include "pilaptimer_forward.h"
 
 #include <Arduino.h>
+#include <math.h>
 #include <string.h>
 
 #include "DEV_Config.h"
@@ -73,6 +74,12 @@ static const uint32_t REACTION_RANDOM_MIN_MS = 400;
 static const uint32_t REACTION_RANDOM_MAX_MS = 1600;
 static const uint32_t REACTION_FALSE_START_LOCKOUT_MS = 2000;
 static const uint32_t REACTION_ACTION_DEBOUNCE_MS = 150;
+static const uint32_t REACTION_IMU_POLL_MS = 30;
+static const uint32_t REACTION_DEBOUNCE_MS = 100;
+static const uint32_t REACTION_POST_GREEN_IGNORE_MS = 80;
+static const float REACTION_GYRO_DPS_THRESHOLD = 60.0f;
+static const float REACTION_ACCEL_G_THRESHOLD = 0.18f;
+static const float REACTION_GRAVITY_MS2 = 9.80665f;
 
 static UWORD* gFrame = nullptr;
 
@@ -340,6 +347,10 @@ static uint8_t gReactionLapCount = 0;
 static bool gReactionReactionCaptured = false;
 static bool gReactionModeActive = false;
 static bool gReactionActionPending = false;
+static bool gReactionIgnoreNextIrHit = false;
+static uint32_t gReactionLastImuMs = 0;
+static uint32_t gReactionMoveStartMs = 0;
+static uint32_t gReactionLastMetricLogMs = 0;
 
 #if USE_LVGL_UI
 static bool gUiDirty = true;
@@ -711,6 +722,10 @@ static void ReactionResetRunState() {
   gReactionLastLapMs = 0;
   gReactionReactionCaptured = false;
   gReactionActionPending = false;
+  gReactionIgnoreNextIrHit = false;
+  gReactionLastImuMs = 0;
+  gReactionMoveStartMs = 0;
+  gReactionLastMetricLogMs = 0;
 }
 
 static void ReactionArmOrReset() {
@@ -734,19 +749,6 @@ static void ReactionRegisterAction(uint32_t now) {
   if ((now - gReactionLastActionMs) < REACTION_ACTION_DEBOUNCE_MS) return;
   gReactionLastActionMs = now;
 
-  if (gReactionState == REACTION_GO_RUNNING || gReactionState == REACTION_RUN_ACTIVE) {
-    if (!gReactionReactionCaptured && gReactionGoMs > 0) {
-      gReactionReactionMs = now - gReactionGoMs;
-      gReactionLastMs = gReactionReactionMs;
-      if (gReactionBestMs == 0 || gReactionReactionMs < gReactionBestMs) {
-        gReactionBestMs = gReactionReactionMs;
-      }
-      gReactionReactionCaptured = true;
-      ReactionSetState(REACTION_RUN_ACTIVE, now);
-    }
-    return;
-  }
-
   if (gReactionState == REACTION_ARMED ||
       gReactionState == REACTION_COUNTDOWN ||
       gReactionState == REACTION_READY_RANDOM) {
@@ -766,6 +768,27 @@ static void ReactionSetModeActive(bool active) {
   }
 }
 
+static bool ReactionPollImu(uint32_t now, float &accelDeltaG, float &gyroDps) {
+  if ((uint32_t)(now - gReactionLastImuMs) < REACTION_IMU_POLL_MS) return false;
+  gReactionLastImuMs = now;
+
+  float ax = 0.0f;
+  float ay = 0.0f;
+  float az = 0.0f;
+  float gx = 0.0f;
+  float gy = 0.0f;
+  float gz = 0.0f;
+
+  if (!imu_qmi8658_read_accel(ax, ay, az)) return false;
+  imu_qmi8658_read_gyro(gx, gy, gz);
+
+  float accMag = sqrtf(ax * ax + ay * ay + az * az);
+  float accG = accMag / REACTION_GRAVITY_MS2;
+  accelDeltaG = fabsf(accG - 1.0f);
+  gyroDps = sqrtf(gx * gx + gy * gy + gz * gz);
+  return true;
+}
+
 static void UpdateReaction(uint32_t now, bool irTrigger, uint32_t irMs) {
   if (!gReactionModeActive) return;
 
@@ -774,24 +797,22 @@ static void UpdateReaction(uint32_t now, bool irTrigger, uint32_t irMs) {
     ReactionRegisterAction(now);
   }
 
-  if (irTrigger) {
-    if (gReactionState == REACTION_GO_RUNNING || gReactionState == REACTION_RUN_ACTIVE) {
-      ReactionRegisterAction(irMs);
-      if (gReactionGoMs > 0) {
-        gReactionLapCount++;
-        gReactionLastLapMs = irMs - gReactionLastLapStartMs;
-        gReactionLastLapStartMs = irMs;
-        gReactionRunMs = irMs - gReactionGoMs;
+  if (irTrigger && gReactionGoMs > 0) {
+    if (gReactionIgnoreNextIrHit) {
+      gReactionIgnoreNextIrHit = false;
 #if REACTION_DEBUG
-        Serial.printf("REACTION lap %u time=%lu ms\n",
-                      (unsigned)gReactionLapCount,
-                      (unsigned long)gReactionLastLapMs);
+      Serial.printf("REACTION ignored first IR hit @ %lu\n", (unsigned long)irMs);
 #endif
-      }
-    } else if (gReactionState == REACTION_ARMED ||
-               gReactionState == REACTION_COUNTDOWN ||
-               gReactionState == REACTION_READY_RANDOM) {
-      ReactionRegisterAction(irMs);
+    } else if (gReactionState == REACTION_LAP_TIMING) {
+      gReactionLapCount++;
+      gReactionLastLapMs = irMs - gReactionLastLapStartMs;
+      gReactionLastLapStartMs = irMs;
+      gReactionRunMs = irMs - gReactionGoMs;
+#if REACTION_DEBUG
+      Serial.printf("REACTION lap %u time=%lu ms\n",
+                    (unsigned)gReactionLapCount,
+                    (unsigned long)gReactionLastLapMs);
+#endif
     }
   }
 
@@ -823,11 +844,61 @@ static void UpdateReaction(uint32_t now, bool irTrigger, uint32_t irMs) {
         gReactionRunMs = 0;
         gReactionReactionCaptured = false;
         gReactionAmberCount = 0;
-        ReactionSetState(REACTION_GO_RUNNING, now);
+        gReactionIgnoreNextIrHit = true;
+        gReactionMoveStartMs = 0;
+        gReactionLastImuMs = 0;
+        gReactionLastMetricLogMs = 0;
+#if REACTION_DEBUG
+        Serial.printf("REACTION green @ %lu\n", (unsigned long)now);
+#endif
+        ReactionSetState(REACTION_WAIT_FOR_MOVE, now);
       }
       break;
-    case REACTION_GO_RUNNING:
-    case REACTION_RUN_ACTIVE:
+    case REACTION_WAIT_FOR_MOVE: {
+      if (gReactionGoMs > 0) {
+        gReactionRunMs = now - gReactionGoMs;
+      }
+      if ((now - gReactionGoMs) < REACTION_POST_GREEN_IGNORE_MS) {
+        gReactionMoveStartMs = 0;
+        break;
+      }
+      float accelDeltaG = 0.0f;
+      float gyroDps = 0.0f;
+      if (!ReactionPollImu(now, accelDeltaG, gyroDps)) break;
+
+#if REACTION_DEBUG
+      if ((now - gReactionLastMetricLogMs) >= 250) {
+        gReactionLastMetricLogMs = now;
+        Serial.printf("REACTION IMU accΔ=%.3fg gyro=%.1fdps @ %lu\n",
+                      (double)accelDeltaG, (double)gyroDps, (unsigned long)now);
+      }
+#endif
+
+      const bool accelMove = accelDeltaG >= REACTION_ACCEL_G_THRESHOLD;
+      const bool gyroMove = gyroDps >= REACTION_GYRO_DPS_THRESHOLD;
+      if (accelMove || gyroMove) {
+        if (gReactionMoveStartMs == 0) {
+          gReactionMoveStartMs = now;
+        }
+        if ((now - gReactionMoveStartMs) >= REACTION_DEBOUNCE_MS) {
+          gReactionReactionMs = now - gReactionGoMs;
+          gReactionLastMs = gReactionReactionMs;
+          if (gReactionBestMs == 0 || gReactionReactionMs < gReactionBestMs) {
+            gReactionBestMs = gReactionReactionMs;
+          }
+          gReactionReactionCaptured = true;
+#if REACTION_DEBUG
+          Serial.printf("REACTION movement detected accΔ=%.3fg gyro=%.1fdps @ %lu\n",
+                        (double)accelDeltaG, (double)gyroDps, (unsigned long)now);
+#endif
+          ReactionSetState(REACTION_LAP_TIMING, now);
+        }
+      } else {
+        gReactionMoveStartMs = 0;
+      }
+      break;
+    }
+    case REACTION_LAP_TIMING:
       if (gReactionGoMs > 0) {
         gReactionRunMs = now - gReactionGoMs;
       }
@@ -1141,10 +1212,16 @@ void loop() {
     ReactionUiSnapshot reactionSnapshot{};
     reactionSnapshot.state = gReactionState;
     reactionSnapshot.amberCount = gReactionAmberCount;
-    reactionSnapshot.greenOn = (gReactionState == REACTION_GO_RUNNING ||
-                                gReactionState == REACTION_RUN_ACTIVE);
+    reactionSnapshot.greenOn = (gReactionState == REACTION_WAIT_FOR_MOVE ||
+                                gReactionState == REACTION_LAP_TIMING);
     reactionSnapshot.reactionCaptured = gReactionReactionCaptured;
-    reactionSnapshot.reactionMs = gReactionReactionMs;
+    if (gReactionReactionCaptured) {
+      reactionSnapshot.reactionMs = gReactionReactionMs;
+    } else if (gReactionState == REACTION_WAIT_FOR_MOVE) {
+      reactionSnapshot.reactionMs = gReactionRunMs;
+    } else {
+      reactionSnapshot.reactionMs = 0;
+    }
     reactionSnapshot.runMs = gReactionRunMs;
     reactionSnapshot.bestReactionMs = gReactionBestMs;
     reactionSnapshot.lastReactionMs = gReactionLastMs;

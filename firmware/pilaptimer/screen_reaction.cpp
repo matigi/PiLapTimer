@@ -35,7 +35,7 @@ void update_status_style(ReactionState state) {
   lv_color_t color = lv_color_hex(0xbad1e8);
   if (state == REACTION_FALSE_START) {
     color = lv_color_hex(0xff5a5f);
-  } else if (state == REACTION_GO_RUNNING || state == REACTION_RUN_ACTIVE) {
+  } else if (state == REACTION_WAIT_FOR_MOVE || state == REACTION_LAP_TIMING) {
     color = lv_color_hex(0x7bf1a8);
   }
   lv_obj_set_style_text_color(refs.statusLabel, color, 0);
@@ -115,7 +115,7 @@ void screen_reaction_attach(lv_obj_t *parent) {
   lv_obj_set_style_border_width(refs.green, 0, 0);
 
   refs.rtLabel = lv_label_create(refs.root);
-  lv_label_set_text(refs.rtLabel, "RT: ---.---s");
+  lv_label_set_text(refs.rtLabel, "Reaction: ---.---s");
   lv_obj_set_style_text_font(refs.rtLabel, &lv_font_montserrat_32, 0);
   lv_obj_set_style_text_color(refs.rtLabel, lv_color_hex(0xf5f8ff), 0);
   lv_obj_align(refs.rtLabel, LV_ALIGN_BOTTOM_MID, 0, -120);
@@ -201,10 +201,10 @@ void screen_reaction_update(const ReactionUiSnapshot &snapshot) {
     case REACTION_READY_RANDOM:
       stateText = "READY";
       break;
-    case REACTION_GO_RUNNING:
-      stateText = "GO!";
+    case REACTION_WAIT_FOR_MOVE:
+      stateText = "WAITING FOR MOVE";
       break;
-    case REACTION_RUN_ACTIVE:
+    case REACTION_LAP_TIMING:
       stateText = "RUNNING";
       break;
     case REACTION_FALSE_START:
@@ -215,13 +215,13 @@ void screen_reaction_update(const ReactionUiSnapshot &snapshot) {
   update_status_style(snapshot.state);
 
   char buffer[32];
-  if (snapshot.reactionCaptured) {
+  if (snapshot.reactionCaptured || snapshot.state == REACTION_WAIT_FOR_MOVE) {
     format_ms(buffer, sizeof(buffer), snapshot.reactionMs);
     char line[40];
-    snprintf(line, sizeof(line), "RT: %s", buffer);
+    snprintf(line, sizeof(line), "Reaction: %s", buffer);
     lv_label_set_text(refs.rtLabel, line);
   } else {
-    lv_label_set_text(refs.rtLabel, "RT: ---.---s");
+    lv_label_set_text(refs.rtLabel, "Reaction: ---.---s");
   }
 
   format_ms(buffer, sizeof(buffer), snapshot.runMs);
