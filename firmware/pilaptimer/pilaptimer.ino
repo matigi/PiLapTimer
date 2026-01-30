@@ -16,7 +16,7 @@
 #include "screen_reaction.h"
 #include "ui_state.h"
 
-#include "../../assets/ui/splash/boot_splash_v2_280x456_rgb565.h"
+#include "boot_splash_v2_280x456_rgb565.h"
 
 #ifndef USE_LVGL_UI
 #define USE_LVGL_UI 1
