@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 
-#include "../../assets/ui/splash/boot_splash_v3_280x456_rgb565.h"
+#include "../../assets/ui/splash/boot_splash_280x456_rgb565le.h"
 
 #define BOOT_SPLASH_V3_WIDTH BOOT_SPLASH_WIDTH
 #define BOOT_SPLASH_V3_HEIGHT BOOT_SPLASH_HEIGHT
