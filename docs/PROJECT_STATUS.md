@@ -1,6 +1,6 @@
 # PiLapTimer – Project Status
 
-Last updated: SD session logging + g-force monitor polish
+Last updated: SD logging validation + next IMU logging focus
 
 # Project Status (Authoritative)
 
@@ -48,12 +48,12 @@ Verified via:
 
 ## Current Focus
 
-Current focus is **post-hw-m06 polish + SD logging validation**.
+Current focus is **IMU logging milestone (Milestone 9)**.
 
 Specifically:
 - Maintain UI stability and readability
-- Validate SD session logging on target hardware
-- Capture any remaining UX tweaks before moving to IMU logging + wireless milestones
+- Capture IMU samples at 100–200 Hz and log to SD
+- Capture any remaining UX tweaks before moving to wireless milestones
 
 ---
 

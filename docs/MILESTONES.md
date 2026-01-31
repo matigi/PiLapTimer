@@ -269,6 +269,7 @@ Persist session data to removable storage.
 Completed implementation details:
 - Session directories created under `/PILAPTIMER/SESSIONS/S<ID>`
 - `laps.csv`, `reaction.csv`, `all_events.csv`, and `summary.txt` emitted per session
+- Hardware validation completed with lap + reaction-time sessions saved to SD
 
 ---
 
