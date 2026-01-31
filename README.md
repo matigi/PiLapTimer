@@ -1,12 +1,11 @@
 ## Project Status
 
 **Current Phase:** Post hw-m06 polish + data logging  
-**Current Milestone:** hw-m06 (complete) → Milestone 8 (SD logging)
+**Current Milestone:** Milestone 8 (SD logging) complete → Milestone 9 (IMU logging)
 
-Milestones 1–6 are complete, including the Phase 2 time-attack flow and UI
-rotation polish. Current work centers on SD-backed session logging and
-hardening the telemetry utilities (reaction/g-force screens) before moving into
-IMU data capture.
+Milestones 1–8 are complete, including the Phase 2 time-attack flow, UI
+rotation polish, and SD session logging. Current work centers on IMU data
+capture and hardening the telemetry utilities (reaction/g-force screens).
 
 For detailed milestone tracking, see:
 docs/PROJECT_STATUS.md
@@ -29,6 +28,7 @@ This tag represents the last known-good hardware integration baseline.
 
 - SD card session logging for laps and reaction-time events, including summary
   files under `/PILAPTIMER/SESSIONS`.
+- SD logging milestone validated on hardware.
 - G-force monitor tile polish (axis orientation fix + smoother dot response).
 
 ## Specification Hierarchy
