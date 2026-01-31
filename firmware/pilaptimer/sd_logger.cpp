@@ -7,6 +7,34 @@
 #define SD_CS_PIN 23
 #endif
 
+#ifndef SD_SPI
+#define SD_SPI SPI
+#endif
+
+#ifndef SD_SPI_SCK_PIN
+#if defined(ARDUINO_ARCH_RP2040)
+#define SD_SPI_SCK_PIN 18
+#else
+#define SD_SPI_SCK_PIN -1
+#endif
+#endif
+
+#ifndef SD_SPI_MOSI_PIN
+#if defined(ARDUINO_ARCH_RP2040)
+#define SD_SPI_MOSI_PIN 19
+#else
+#define SD_SPI_MOSI_PIN -1
+#endif
+#endif
+
+#ifndef SD_SPI_MISO_PIN
+#if defined(ARDUINO_ARCH_RP2040)
+#define SD_SPI_MISO_PIN 20
+#else
+#define SD_SPI_MISO_PIN -1
+#endif
+#endif
+
 #ifndef SD_LOG_BUFFER_LINES
 #define SD_LOG_BUFFER_LINES 48
 #endif
@@ -281,7 +309,23 @@ bool sd_logger_init() {
   if (gReady) return true;
 
   Serial.println("SD: init start");
-  if (!SD.begin(SD_CS_PIN)) {
+  if (SD_SPI_SCK_PIN >= 0 || SD_SPI_MOSI_PIN >= 0 || SD_SPI_MISO_PIN >= 0) {
+    Serial.printf("SD: SPI pins SCK=%d MOSI=%d MISO=%d\n",
+                  SD_SPI_SCK_PIN,
+                  SD_SPI_MOSI_PIN,
+                  SD_SPI_MISO_PIN);
+#if defined(ARDUINO_ARCH_RP2040)
+    if (SD_SPI_SCK_PIN >= 0) SD_SPI.setSCK(SD_SPI_SCK_PIN);
+    if (SD_SPI_MOSI_PIN >= 0) SD_SPI.setTX(SD_SPI_MOSI_PIN);
+    if (SD_SPI_MISO_PIN >= 0) SD_SPI.setRX(SD_SPI_MISO_PIN);
+#endif
+  } else {
+    Serial.println("SD: SPI pins default");
+  }
+  pinMode(SD_CS_PIN, OUTPUT);
+  digitalWrite(SD_CS_PIN, HIGH);
+  SD_SPI.begin();
+  if (!SD.begin(SD_CS_PIN, SD_SPI)) {
     Serial.printf("SD: init failed (CS pin %u)\n", (unsigned)SD_CS_PIN);
     gReady = false;
     return false;
