@@ -41,8 +41,8 @@ static void normalizeTouch(uint16_t rawX, uint16_t rawY, uint16_t &nx, uint16_t 
 }
 
 static void rotateTouch(uint16_t nx, uint16_t ny, uint16_t &rx, uint16_t &ry) {
-  rx = (LVGL_LOGICAL_W - 1) - ny;
-  ry = nx;
+  rx = ny;
+  ry = (LVGL_LOGICAL_H - 1) - nx;
 }
 
 static void lv_port_indev_read(lv_indev_drv_t *drv, lv_indev_data_t *data) {

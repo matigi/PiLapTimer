@@ -26,10 +26,10 @@ static void lv_port_disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, l
     return;
   }
 
-  const int32_t phys_x_start = area->y1;
-  const int32_t phys_x_end = area->y2;
-  const int32_t phys_y_start = (int32_t)LVGL_LOGICAL_W - 1 - area->x2;
-  const int32_t phys_y_end = (int32_t)LVGL_LOGICAL_W - 1 - area->x1;
+  const int32_t phys_x_start = (int32_t)LVGL_LOGICAL_H - 1 - area->y2;
+  const int32_t phys_x_end = (int32_t)LVGL_LOGICAL_H - 1 - area->y1;
+  const int32_t phys_y_start = area->x1;
+  const int32_t phys_y_end = area->x2;
 
   const int32_t phys_width = phys_x_end - phys_x_start + 1;
   const int32_t phys_height = phys_y_end - phys_y_start + 1;
@@ -43,10 +43,10 @@ static void lv_port_disp_flush(lv_disp_drv_t *disp_drv, const lv_area_t *area, l
 
     for (int32_t row = 0; row < stripe_rows; ++row) {
       const int32_t phys_y = phys_y_start + rows_sent + row;
-      const int32_t logical_x = (int32_t)LVGL_LOGICAL_W - 1 - phys_y;
+      const int32_t logical_x = phys_y;
       for (int32_t col = 0; col < phys_width; ++col) {
         const int32_t phys_x = phys_x_start + col;
-        const int32_t logical_y = phys_x;
+        const int32_t logical_y = (int32_t)LVGL_LOGICAL_H - 1 - phys_x;
         const int32_t src_index =
             (logical_y - area->y1) * logical_width + (logical_x - area->x1);
         const uint16_t src_px = ((uint16_t *)color_p)[src_index];
