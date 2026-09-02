@@ -6,6 +6,7 @@
 
 #include "screen_gforce.h"
 #include "screen_reaction.h"
+#include "screen_ir_test.h"
 
 namespace {
 constexpr uint8_t kMaxDrivers = 10;
@@ -19,6 +20,7 @@ struct UiRefs {
   lv_obj_t *reactionTile;
   lv_obj_t *reviewTile;
   lv_obj_t *gforceTile;
+  lv_obj_t *irTestTile;
   lv_obj_t *settingsTile;
 
   lv_obj_t *bestLabel;
@@ -209,6 +211,8 @@ void tileview_scroll_event(lv_event_t *e) {
     tile = LV_TIME_ATTACK_TILE_REACTION;
   } else if (activeTile == refs.gforceTile) {
     tile = LV_TIME_ATTACK_TILE_GFORCE;
+  } else if (activeTile == refs.irTestTile) {
+    tile = LV_TIME_ATTACK_TILE_IR_TEST;
   } else if (activeTile == refs.reviewTile) {
     tile = LV_TIME_ATTACK_TILE_REVIEW;
   }
@@ -312,7 +316,8 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   refs.raceTile = lv_tileview_add_tile(refs.tileview, 1, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
   refs.reactionTile = lv_tileview_add_tile(refs.tileview, 2, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
   refs.gforceTile = lv_tileview_add_tile(refs.tileview, 3, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
-  refs.reviewTile = lv_tileview_add_tile(refs.tileview, 4, 0, LV_DIR_LEFT);
+  refs.irTestTile = lv_tileview_add_tile(refs.tileview, 4, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
+  refs.reviewTile = lv_tileview_add_tile(refs.tileview, 5, 0, LV_DIR_LEFT);
 
   lv_obj_set_tile(refs.tileview, refs.raceTile, LV_ANIM_OFF);
   // Swipe left on the main timer tile to reach Reaction Race (G-Force is one more swipe).
@@ -320,6 +325,7 @@ void lv_time_attack_ui_init(void (*startStopCb)(),
   lv_obj_add_event_cb(refs.raceTile, screen_gesture_event, LV_EVENT_GESTURE, nullptr);
   screen_gforce_attach(refs.gforceTile);
   screen_reaction_attach(refs.reactionTile);
+  screen_ir_test_attach(refs.irTestTile);
 
   // Race tile
   refs.bestLabel = lv_label_create(refs.raceTile);
@@ -526,6 +532,11 @@ void lv_time_attack_ui_show_settings_tile() {
 void lv_time_attack_ui_show_gforce_tile() {
   if (!refs.tileview || !refs.gforceTile) return;
   lv_obj_set_tile(refs.tileview, refs.gforceTile, LV_ANIM_ON);
+}
+
+void lv_time_attack_ui_show_ir_test_tile() {
+  if (!refs.tileview || !refs.irTestTile) return;
+  lv_obj_set_tile(refs.tileview, refs.irTestTile, LV_ANIM_ON);
 }
 
 void lv_time_attack_ui_update(const UiSnapshot &snapshot) {

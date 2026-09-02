@@ -37,6 +37,7 @@ If conflicts arise, this document governs screen flow and interaction behavior.
 | S3 | Running |
 | S4 | Finished / Results |
 | S5 | Driver Stats / Comparison |
+| S6 | IR Beam Test (service screen) |
 
 ---
 
@@ -209,6 +210,34 @@ Best: 0:16.104
 | Button | Action |
 |------|--------|
 | BACK | Return to S4 |
+
+---
+
+### S6 — IR Beam Test (Service Screen)
+
+**Purpose:**  
+Measure the receiver's optical detection zone during stationary outdoor setup.
+
+**Display:**
+- Qualified DETECTED / NO SIGNAL state
+- Falling edges per 20 ms sample
+- Raw activity, receiver pin state, ON/OFF streaks
+- Peak edge count, qualified entry count, active duration, hit rate, and last-edge age
+- Audio state
+
+**Behavior:**
+- Available from the horizontal tile sequence only while a race is not running
+- Uses the same qualified IR detector as lap timing
+- Does not start a run or record a lap
+- Emits a continuous, strength-coded tone while qualified IR is present and audio is enabled
+- Resets session counters when the tile is entered
+
+**Touch Targets:**
+
+| Button | Action |
+|------|--------|
+| AUDIO ON/OFF | Toggle audible beam feedback |
+| RESET STATS | Clear peak, hit, edge, and entry counters |
 
 ---
 

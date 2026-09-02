@@ -26,6 +26,8 @@ This tag represents the last known-good hardware integration baseline.
 
 ## Recent Progress
 
+- Outdoor IR Beam Test tile with audible signal-strength feedback, live edge diagnostics, and resettable boundary-test statistics.
+- Parametric receiver/beacon baffles and outdoor test guidance in `docs/IR_OPTICS_TESTING.md`.
 - SD card session logging for laps and reaction-time events, including summary
   files under `/PILAPTIMER/SESSIONS`.
 - SD logging milestone validated on hardware.

@@ -27,6 +27,11 @@ void ShowGForceScreen() {
   lv_time_attack_ui_show_gforce_tile();
 }
 
+void ShowIrTestScreen() {
+  lv_scr_load(lv_time_attack_ui_get_screen());
+  lv_time_attack_ui_show_ir_test_tile();
+}
+
 void screen_nav_set_transitioning(bool transitioning) {
   g_is_transitioning = transitioning;
 }
@@ -36,6 +41,7 @@ bool screen_nav_is_transitioning() { return g_is_transitioning; }
 void ShowMainScreen() {}
 void ShowReactionScreen() {}
 void ShowGForceScreen() {}
+void ShowIrTestScreen() {}
 void screen_nav_set_transitioning(bool) {}
 bool screen_nav_is_transitioning() { return false; }
 #endif

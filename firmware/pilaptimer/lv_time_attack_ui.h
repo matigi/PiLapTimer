@@ -37,6 +37,7 @@ enum LvTimeAttackTile {
   LV_TIME_ATTACK_TILE_RACE,
   LV_TIME_ATTACK_TILE_REACTION,
   LV_TIME_ATTACK_TILE_GFORCE,
+  LV_TIME_ATTACK_TILE_IR_TEST,
   LV_TIME_ATTACK_TILE_REVIEW,
   LV_TIME_ATTACK_TILE_UNKNOWN
 };
@@ -46,6 +47,7 @@ void lv_time_attack_ui_show_race_tile();
 void lv_time_attack_ui_show_reaction_tile();
 void lv_time_attack_ui_show_settings_tile();
 void lv_time_attack_ui_show_gforce_tile();
+void lv_time_attack_ui_show_ir_test_tile();
 void lv_time_attack_ui_update(const UiSnapshot &snapshot);
 lv_obj_t *lv_time_attack_ui_get_screen();
 
