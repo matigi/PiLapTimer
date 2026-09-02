@@ -4,9 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 ### Added
+- IR Beam Test tile with live edge rate, qualified detection, signal statistics, resettable counters, and strength-coded audible feedback.
+- Parametric receiver and beacon optical baffles plus an outdoor beam-width test procedure.
 - SD card session logging for lap and reaction events, including per-session summaries under `/PILAPTIMER/SESSIONS`.
 
 ### Changed
+- Production IR triggering now uses the documented 20 ms edge-count detector with hysteresis and the locked cooldown/minimum-lap safeguards.
 - G-force monitor tile response smoothing and axis orientation mapping.
 
 ## [0.2.0] - 2026-01-29

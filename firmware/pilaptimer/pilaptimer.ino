@@ -14,6 +14,7 @@
 #include "GUI_Paint.h"
 #include "fonts.h"
 #include "screen_reaction.h"
+#include "screen_ir_test.h"
 #include "ui_state.h"
 #include "sd_logger.h"
 
@@ -63,8 +64,13 @@ static const uint8_t  BUZZER_PIN = 16;
 
 // IR lap trigger input
 static const uint8_t  IR_IN_PIN = 1; // GP1
-static const uint32_t LAP_LOCKOUT_MS = 1500;
-static const uint32_t IR_RELEASE_MS = 200;
+static const uint16_t IR_SAMPLE_MS = 20;
+static const uint16_t IR_ON_THRESHOLD = 3;
+static const uint16_t IR_OFF_THRESHOLD = 1;
+static const uint8_t IR_REQUIRED_STREAK = 2;
+static const uint32_t LAP_LOCKOUT_MS = 2000;
+static const uint32_t MIN_LAP_MS = 5000;
+static const uint16_t IR_TEST_UI_REFRESH_MS = 50;
 
 // Polling + state windowing
 static const uint16_t POLL_MS              = 10;
@@ -270,15 +276,27 @@ static void RotateTouch(uint16_t nx, uint16_t ny, uint16_t &rx, uint16_t &ry) {
 #define IRAM_ATTR
 #endif
 
-volatile bool gIrSeen = false;
-volatile uint32_t gIrSeenMs = 0;
-static bool gIrActive = false;
-static uint32_t gIrReleaseStartMs = 0;
-static uint32_t gIrLastReleaseMs = 0;
+volatile uint32_t gIrFallingCount = 0;
+volatile uint32_t gIrLastFallingUs = 0;
+static uint32_t gIrLastSampleMs = 0;
+static uint32_t gIrLastFallsSnapshot = 0;
+static uint16_t gIrEdgesLastWindow = 0;
+static uint16_t gIrPeakEdges = 0;
+static uint8_t gIrOnStreak = 0;
+static uint8_t gIrOffStreak = 0;
+static bool gIrRawActivity = false;
+static bool gIrBeaconPresent = false;
+static bool gIrTriggerPending = false;
+static uint32_t gIrTriggerMs = 0;
+static uint32_t gIrPresenceStartMs = 0;
+static uint32_t gIrTestEdgesAtReset = 0;
+static uint32_t gIrTestQualifiedEntries = 0;
+static uint32_t gIrTestSampleWindows = 0;
+static uint32_t gIrTestHitWindows = 0;
 
 void IRAM_ATTR IrIsr() {
-  gIrSeenMs = (uint32_t)millis();
-  gIrSeen = true;
+  gIrFallingCount++;
+  gIrLastFallingUs = (uint32_t)micros();
 }
 
 static bool HitTest(const Button &btn, uint16_t x, uint16_t y) {
@@ -375,6 +393,8 @@ static uint32_t gSessionMs = 0;
 static uint32_t gLastUiMs = 0;
 static uint32_t gLastLapTriggerMs = 0;
 static uint32_t gLastBeepMs = 0;
+static bool gIrTestModeActive = false;
+static bool gIrTestAudioEnabled = true;
 static uint32_t gReactionStateMs = 0;
 static uint32_t gReactionGoMs = 0;
 static uint32_t gReactionRunMs = 0;
@@ -395,7 +415,138 @@ static bool gUiDirty = true;
 static uint32_t gLastLvglUiMs = 0;
 static bool gReactionUiDirty = true;
 static uint32_t gLastReactionUiMs = 0;
+static bool gIrTestUiDirty = true;
+static uint32_t gLastIrTestUiMs = 0;
 #endif
+
+static void ResetIrTestStats() {
+  uint32_t falls = 0;
+  noInterrupts();
+  falls = gIrFallingCount;
+  interrupts();
+  gIrTestEdgesAtReset = falls;
+  gIrTestQualifiedEntries = 0;
+  gIrTestSampleWindows = 0;
+  gIrTestHitWindows = 0;
+  gIrPeakEdges = 0;
+#if USE_LVGL_UI
+  gIrTestUiDirty = true;
+#endif
+}
+
+static void SetIrTestModeActive(bool active) {
+  if (gIrTestModeActive == active) return;
+  gIrTestModeActive = active;
+  gIrTriggerPending = false;
+  analogWrite(BUZZER_PIN, 0);
+  if (active) {
+    ResetIrTestStats();
+    Serial.println("IR TEST: active");
+  } else {
+    Serial.println("IR TEST: inactive");
+  }
+#if USE_LVGL_UI
+  gIrTestUiDirty = true;
+#endif
+}
+
+static void ToggleIrTestAudio() {
+  gIrTestAudioEnabled = !gIrTestAudioEnabled;
+  if (!gIrTestAudioEnabled) analogWrite(BUZZER_PIN, 0);
+#if USE_LVGL_UI
+  gIrTestUiDirty = true;
+#endif
+}
+
+static void UpdateIrDetection(uint32_t now) {
+  if ((uint32_t)(now - gIrLastSampleMs) < IR_SAMPLE_MS) return;
+  gIrLastSampleMs = now;
+
+  uint32_t falls = 0;
+  noInterrupts();
+  falls = gIrFallingCount;
+  interrupts();
+
+  uint32_t delta = falls - gIrLastFallsSnapshot;
+  gIrLastFallsSnapshot = falls;
+  gIrEdgesLastWindow = (delta > UINT16_MAX) ? UINT16_MAX : (uint16_t)delta;
+  gIrRawActivity = gIrEdgesLastWindow >= IR_ON_THRESHOLD;
+
+  if (gIrRawActivity) {
+    if (gIrOnStreak < UINT8_MAX) gIrOnStreak++;
+  } else {
+    gIrOnStreak = 0;
+  }
+
+  if (gIrEdgesLastWindow <= IR_OFF_THRESHOLD) {
+    if (gIrOffStreak < UINT8_MAX) gIrOffStreak++;
+  } else {
+    gIrOffStreak = 0;
+  }
+
+  const bool wasPresent = gIrBeaconPresent;
+  if (!gIrBeaconPresent && gIrOnStreak >= IR_REQUIRED_STREAK) {
+    gIrBeaconPresent = true;
+  } else if (gIrBeaconPresent && gIrOffStreak >= IR_REQUIRED_STREAK) {
+    gIrBeaconPresent = false;
+  }
+
+  if (gIrTestModeActive) {
+    gIrTestSampleWindows++;
+    if (gIrRawActivity) gIrTestHitWindows++;
+    if (gIrEdgesLastWindow > gIrPeakEdges) gIrPeakEdges = gIrEdgesLastWindow;
+  }
+
+  if (gIrBeaconPresent && !wasPresent) {
+    gIrPresenceStartMs = now;
+    if (gIrTestModeActive) {
+      gIrTestQualifiedEntries++;
+      Serial.printf("IR TEST: detected edges=%u peak=%u entries=%lu\n",
+                    (unsigned)gIrEdgesLastWindow,
+                    (unsigned)gIrPeakEdges,
+                    (unsigned long)gIrTestQualifiedEntries);
+    }
+    if (!gIrTestModeActive && !gReactionModeActive &&
+        (uint32_t)(now - gLastLapTriggerMs) >= LAP_LOCKOUT_MS) {
+      gLastLapTriggerMs = now;
+      gIrTriggerMs = now;
+      gIrTriggerPending = true;
+    }
+  } else if (!gIrBeaconPresent && wasPresent) {
+    if (gIrTestModeActive) {
+      Serial.printf("IR TEST: clear after %lums\n",
+                    (unsigned long)(now - gIrPresenceStartMs));
+    }
+    gIrPresenceStartMs = 0;
+  }
+
+#if USE_LVGL_UI
+  if (gIrTestModeActive) gIrTestUiDirty = true;
+#endif
+}
+
+static void UpdateIrTestAudio() {
+  static bool toneActive = false;
+  static uint16_t lastFrequency = 0;
+
+  if (!gIrTestModeActive || !gIrTestAudioEnabled || !gIrBeaconPresent) {
+    if (toneActive) analogWrite(BUZZER_PIN, 0);
+    toneActive = false;
+    lastFrequency = 0;
+    return;
+  }
+
+  uint16_t strength = gIrEdgesLastWindow;
+  if (strength > 24) strength = 24;
+  const uint16_t frequency = 1800 + strength * 50;
+  if (!toneActive || frequency != lastFrequency) {
+    analogWriteFreq(frequency);
+    analogWrite(BUZZER_PIN, 128);
+    toneActive = true;
+    lastFrequency = frequency;
+  }
+}
+
 // Buttons (idle)
 static const Button BTN_DRIVER_MINUS = {UI_STEP_MINUS_X, UI_DRIVER_Y + UI_STEP_Y_OFFSET, UI_STEP_BTN, UI_STEP_BTN, "-"};
 static const Button BTN_DRIVER_PLUS  = {UI_STEP_PLUS_X, UI_DRIVER_Y + UI_STEP_Y_OFFSET, UI_STEP_BTN, UI_STEP_BTN, "+"};
@@ -961,6 +1112,7 @@ static void HandleReactionSwipeRight() {
 
 static void HandleTileChange(LvTimeAttackTile tile) {
   ReactionSetModeActive(tile == LV_TIME_ATTACK_TILE_REACTION);
+  SetIrTestModeActive(tile == LV_TIME_ATTACK_TILE_IR_TEST && gState != UI_RUNNING);
 }
 
 static void HandleMainSwipeLeft() {
@@ -1079,6 +1231,8 @@ void setup() {
   screen_reaction_set_swipe_right_handler(HandleReactionSwipeRight);
   screen_reaction_set_action_handler(HandleReactionTap);
   screen_reaction_set_arm_handler(ReactionArmOrReset);
+  screen_ir_test_set_audio_toggle_handler(ToggleIrTestAudio);
+  screen_ir_test_set_reset_handler(ResetIrTestStats);
   lv_obj_invalidate(lv_scr_act());
   lv_timer_handler();
 #endif
@@ -1144,86 +1298,59 @@ void loop() {
   touchDown = downNow;
 #endif
 
-  // IR events
-  if (!pollReady) {
-#if USE_LVGL_UI
-    // Skip polling-sensitive logic but allow LVGL updates below.
-#else
-    return;
-#endif
-  }
+  // IR events. The same qualified detector drives race timing and the test screen.
+  UpdateIrDetection(now);
   uint32_t irMs = now;
   bool irTrigger = false;
-  bool signalActive = (digitalRead(IR_IN_PIN) == LOW);
-  if (gIrSeen) {
-    noInterrupts();
-    irMs = gIrSeenMs;
-    gIrSeen = false;
-    interrupts();
-    signalActive = true;
+  if (gIrTriggerPending) {
+    irMs = gIrTriggerMs;
+    gIrTriggerPending = false;
+    irTrigger = true;
   }
 
-  if (signalActive) {
-    gIrReleaseStartMs = 0;
-    if (!gIrActive) {
-      // Rising edge: only count once per IR active window, with lockout and release guard.
-      if ((now - gLastLapTriggerMs) >= LAP_LOCKOUT_MS &&
-          (now - gIrLastReleaseMs) >= IR_RELEASE_MS) {
-        gLastLapTriggerMs = now;
-        irTrigger = true;
-      }
-      gIrActive = true;
-    }
-  } else if (gIrActive) {
-    if (gIrReleaseStartMs == 0) {
-      gIrReleaseStartMs = now;
-    }
-    if ((now - gIrReleaseStartMs) >= IR_RELEASE_MS) {
-      gIrActive = false;
-      gIrLastReleaseMs = now;
-      gIrReleaseStartMs = 0;
-    }
-  } else {
-    gIrReleaseStartMs = 0;
-  }
-
-  if (irTrigger && !gReactionModeActive) {
+  if (irTrigger && !gReactionModeActive && !gIrTestModeActive) {
     if (gState == UI_ARMED) {
       Serial.println("IR: start run");
       StartRunning(irMs);
     } else if (gState == UI_RUNNING) {
-      gLapCount++;
-      gLastLapMs = ElapsedSince(irMs, gLastLapStartMs);
-      gLastLapStartMs = irMs;
-      gSessionMs = ElapsedSince(irMs, gStartMs);
-      const bool bestLap = (gBestLapMs == 0 || gLastLapMs < gBestLapMs);
-      if (bestLap) {
-        gBestLapMs = gLastLapMs;
-      }
-      gDeltaMs = (int32_t)gLastLapMs - (int32_t)gBestLapMs;
-
-      Serial.printf("LAP %u time=%lu ms\n", (unsigned)gLapCount, (unsigned long)gLastLapMs);
-      sd_logger_log_lap(gSelectedDriver,
-                        gLapCount,
-                        gLastLapMs,
-                        gBestLapMs,
-                        gSelectedLaps);
-
-      if ((irMs - gLastBeepMs) >= BEEP_DEBOUNCE_MS) {
-        BeepLap(bestLap);
-        gLastBeepMs = irMs;
-      }
-
-      if (gLapCount >= gSelectedLaps) {
-        BeepComplete();
-        FinishRun(irMs);
+      if (ElapsedSince(irMs, gLastLapStartMs) < MIN_LAP_MS) {
+        Serial.printf("IR: ignored crossing before %lums minimum lap time\n",
+                      (unsigned long)MIN_LAP_MS);
       } else {
-        RenderState();
+        gLapCount++;
+        gLastLapMs = ElapsedSince(irMs, gLastLapStartMs);
+        gLastLapStartMs = irMs;
+        gSessionMs = ElapsedSince(irMs, gStartMs);
+        const bool bestLap = (gBestLapMs == 0 || gLastLapMs < gBestLapMs);
+        if (bestLap) {
+          gBestLapMs = gLastLapMs;
+        }
+        gDeltaMs = (int32_t)gLastLapMs - (int32_t)gBestLapMs;
+
+        Serial.printf("LAP %u time=%lu ms\n", (unsigned)gLapCount, (unsigned long)gLastLapMs);
+        sd_logger_log_lap(gSelectedDriver,
+                          gLapCount,
+                          gLastLapMs,
+                          gBestLapMs,
+                          gSelectedLaps);
+
+        if ((irMs - gLastBeepMs) >= BEEP_DEBOUNCE_MS) {
+          BeepLap(bestLap);
+          gLastBeepMs = irMs;
+        }
+
+        if (gLapCount >= gSelectedLaps) {
+          BeepComplete();
+          FinishRun(irMs);
+        } else {
+          RenderState();
+        }
       }
     }
   }
 
   UpdateReaction(now);
+  UpdateIrTestAudio();
 
   if (gState == UI_RUNNING) {
     gSessionMs = ElapsedSince(now, gStartMs);
@@ -1265,6 +1392,40 @@ void loop() {
       snapshot.currentLapMs = 0;
     }
     lv_time_attack_ui_update(snapshot);
+  }
+
+  if (gIrTestModeActive &&
+      (gIrTestUiDirty || (uint32_t)(now - gLastIrTestUiMs) >= IR_TEST_UI_REFRESH_MS)) {
+    gLastIrTestUiMs = now;
+    gIrTestUiDirty = false;
+
+    uint32_t falls = 0;
+    uint32_t lastFallUs = 0;
+    noInterrupts();
+    falls = gIrFallingCount;
+    lastFallUs = gIrLastFallingUs;
+    interrupts();
+
+    IrTestUiSnapshot irSnapshot{};
+    irSnapshot.beaconPresent = gIrBeaconPresent;
+    irSnapshot.rawActivity = gIrRawActivity;
+    irSnapshot.receiverLow = digitalRead(IR_IN_PIN) == LOW;
+    irSnapshot.audioEnabled = gIrTestAudioEnabled;
+    irSnapshot.edgesLastWindow = gIrEdgesLastWindow;
+    irSnapshot.peakEdges = gIrPeakEdges;
+    irSnapshot.onStreak = gIrOnStreak;
+    irSnapshot.offStreak = gIrOffStreak;
+    irSnapshot.totalEdges = falls - gIrTestEdgesAtReset;
+    irSnapshot.qualifiedEntries = gIrTestQualifiedEntries;
+    irSnapshot.currentPresenceMs =
+        (gIrBeaconPresent && gIrPresenceStartMs > 0) ? now - gIrPresenceStartMs : 0;
+    irSnapshot.lastEdgeAgeMs =
+        (lastFallUs == 0) ? UINT32_MAX : (uint32_t)((micros() - lastFallUs) / 1000UL);
+    irSnapshot.hitPercent =
+        (gIrTestSampleWindows == 0)
+            ? 0
+            : (uint8_t)((gIrTestHitWindows * 100UL) / gIrTestSampleWindows);
+    screen_ir_test_update(irSnapshot);
   }
 
   if (gReactionModeActive &&
